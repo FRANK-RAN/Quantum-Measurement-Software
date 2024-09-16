@@ -31,6 +31,14 @@
                 <lvc:HeatSeries Name="HeatSeries"
                                 DataLabels="True"
                                 Title="Cross Correlation Matrix">
+                    <lvc:HeatSeries.GradientStopCollection>
+                        <GradientStop Offset="0" Color="#99FFFF00"></GradientStop>
+                        <GradientStop Offset=".25" Color="#FFFFFF00"></GradientStop>
+                        <GradientStop Offset=".50" Color="#990000FF"></GradientStop>
+                        <GradientStop Offset=".75" Color="#FF0000FF"></GradientStop>
+                        <GradientStop Offset="1" Color="#50505050"></GradientStop>
+                    </lvc:HeatSeries.GradientStopCollection>
+                    
                 </lvc:HeatSeries>
             </lvc:CartesianChart.Series>
 
