@@ -7,11 +7,14 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using MotorControl;
+using LiveCharts.Defaults;
+using Windows.Foundation.Collections;
 
 namespace Quantum_measurement_UI
 {
     public partial class MainWindow : Window
     {
+       
         private const string PipeName = "DataPipe";
         private const int DataPoints = 100;
         private const double UpdateInterval = 100; // milliseconds
@@ -28,10 +31,13 @@ namespace Quantum_measurement_UI
         public ChartValues<double> ChannelAValues { get; set; }
         public ChartValues<double> ChannelBValues { get; set; }
 
+        public ChartValues<HeatPoint> HeatValues { get; set; }
+
         public MainWindow()
         {
             InitializeComponent();
             InitializePipeClient();
+            
 
             // Initialize the chart series
             ChannelAValues = new ChartValues<double>();
@@ -67,8 +73,25 @@ namespace Quantum_measurement_UI
             // Initialize MotorController at the class level
             motorController = new MotorController();
 
+
+            // Initialize heatmap values (3x2 grid)
+            var heatValues = new ChartValues<HeatPoint>
+            {
+                new HeatPoint(0, 0, 1),  // X=0, Y=0, Value=1
+                new HeatPoint(1, 0, 2),  // X=1, Y=0, Value=2
+                new HeatPoint(0, 1, 3),  // X=0, Y=1, Value=3
+                new HeatPoint(1, 1, 4),  // X=1, Y=1, Value=4
+                new HeatPoint(0, 2, 5),  // X=0, Y=2, Value=5
+                new HeatPoint(1, 2, 6)   // X=1, Y=2, Value=6
+            };
+
+            HeatSeries.Values = heatValues; // Assign values directly
+
+
             StartDataUpdates();
         }
+
+ 
 
         private void InitializePipeClient()
         {
