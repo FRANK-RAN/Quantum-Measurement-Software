@@ -1104,9 +1104,11 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 	int					segmentSize;														// Size of one segment in the input data 
 
 	HANDLE raw_signal_hPipe = NULL;
+	HANDLE corr_matrix_hPipe = NULL;
 
 	if (useIPC) {
 		raw_signal_hPipe = createAndConnectPipe(RAW_SIG_PIPE_NAME, 0);
+		corr_matrix_hPipe = createAndConnectPipe(COR_MAT_PIPE_NAME, 0);
 	}
 	
 
@@ -1571,6 +1573,7 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 
 			if (NULL != pWorkBuffer && useIPC) {
 				int result = handleClientRequests(raw_signal_hPipe, pWorkBuffer, h_odata, 0, 200, 0);  // 200 is the number of bytes to send, check request from client and send data
+				int result2 = handleClientRequests(corr_matrix_hPipe, pWorkBuffer, h_odata, 0, 64 * sizeof(double), 1);  // 512 is the number of bytes to send, check request from client and send data
 			}
 			
 

@@ -75,7 +75,7 @@ extern "C" int handleClientRequests(HANDLE hPipe, short* data, double* corrMatri
 	}
 	else if(choice == 1) {
 		// Calculate the starting position for the segment to send
-		double* segmentStart = corrMatrix + (segmentIndex * (bytesToSend / sizeof(double))); // Calculate the starting point
+		double* segmentStart = corrMatrix; // Calculate the starting point
 		success = WriteFile(hPipe, segmentStart, bytesToSend, &bytesWritten, NULL);
 
 	}

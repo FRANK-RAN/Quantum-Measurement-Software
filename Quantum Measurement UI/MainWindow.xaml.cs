@@ -16,11 +16,14 @@ namespace Quantum_measurement_UI
     {
        
         private const string PipeName = "DataPipe";
+        private const string CorrPipeName = "CorrMatrixPipe";
         private const int DataPoints = 100;
         private const double UpdateInterval = 100; // milliseconds
 
         private short[] dataBuffer = new short[DataPoints];
+        private double[] corrMatrixBuffer = new double[64];
         private NamedPipeClientStream pipeClient;
+        private NamedPipeClientStream corrPipeClient;
         private Task updateTask;
         private CancellationTokenSource cancellationTokenSource;
 
@@ -31,7 +34,9 @@ namespace Quantum_measurement_UI
         public ChartValues<double> ChannelAValues { get; set; }
         public ChartValues<double> ChannelBValues { get; set; }
 
-        public ChartValues<HeatPoint> HeatValues { get; set; }
+        public ChartValues<HeatPoint> heatValues { get; set; }
+
+
 
         public MainWindow()
         {
@@ -75,15 +80,7 @@ namespace Quantum_measurement_UI
 
 
             // Initialize heatmap values (3x2 grid)
-            var heatValues = new ChartValues<HeatPoint>
-            {
-                new HeatPoint(0, 0, 1),  // X=0, Y=0, Value=1
-                new HeatPoint(1, 0, 2),  // X=1, Y=0, Value=2
-                new HeatPoint(0, 1, 3),  // X=0, Y=1, Value=3
-                new HeatPoint(1, 1, 4),  // X=1, Y=1, Value=4
-                new HeatPoint(0, 2, 5),  // X=0, Y=2, Value=5
-                new HeatPoint(1, 2, 6)   // X=1, Y=2, Value=6
-            };
+            heatValues = new ChartValues<HeatPoint> {};
 
             HeatSeries.Values = heatValues; // Assign values directly
 
@@ -97,6 +94,9 @@ namespace Quantum_measurement_UI
         {
             pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
             pipeClient.Connect();
+            Console.WriteLine("Connected to server.");
+            corrPipeClient = new NamedPipeClientStream(".", CorrPipeName, PipeDirection.InOut);
+            corrPipeClient.Connect();
             Console.WriteLine("Connected to server.");
         }
 
@@ -118,6 +118,7 @@ namespace Quantum_measurement_UI
                     {
                         // Update the chart with new data
                         Dispatcher.Invoke(() => UpdateChart());
+                        Dispatcher.Invoke(() => UpdateHeatmap());
                     }
 
                     await Task.Delay((int)UpdateInterval);
@@ -131,34 +132,33 @@ namespace Quantum_measurement_UI
 
         private async Task<bool> RequestAndReceiveDataAsync()
         {
-            try
+            // Send a request to the server
+            byte[] request = BitConverter.GetBytes((short)1);
+            await pipeClient.WriteAsync(request, 0, request.Length);
+            // await pipeClient.FlushAsync(); // Uncomment if necessary
+            await corrPipeClient.WriteAsync(request, 0, request.Length);
+            // await corrPipeClient.FlushAsync(); // Uncomment if necessary
+
+            // Receive data from the server
+            byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
+            byte[] corrBufferBytes = new byte[64 * sizeof(double)];
+            int bytesRead = await pipeClient.ReadAsync(dataBufferBytes, 0, dataBufferBytes.Length);
+            int corrBytesRead = await corrPipeClient.ReadAsync(corrBufferBytes, 0, corrBufferBytes.Length);
+
+            if (bytesRead == dataBufferBytes.Length && corrBytesRead == corrBufferBytes.Length)
             {
-                // Send a request to the server
-                byte[] request = BitConverter.GetBytes((short)1);
-                await pipeClient.WriteAsync(request, 0, request.Length);
-                await pipeClient.FlushAsync();
-
-                // Receive data from the server
-                byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
-                int bytesRead = await pipeClient.ReadAsync(dataBufferBytes, 0, dataBufferBytes.Length);
-
-                if (bytesRead == dataBufferBytes.Length)
-                {
-                    Buffer.BlockCopy(dataBufferBytes, 0, dataBuffer, 0, dataBufferBytes.Length);
-                    return true; // Data received successfully
-                }
-                else
-                {
-                    Console.WriteLine("Error: Incomplete data received.");
-                    return false; // Data reception failed
-                }
+                Buffer.BlockCopy(dataBufferBytes, 0, dataBuffer, 0, dataBufferBytes.Length);
+                Buffer.BlockCopy(corrBufferBytes, 0, corrMatrixBuffer, 0, corrBufferBytes.Length);
+                Console.WriteLine("Data is received");
+                return true; // Data received successfully
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"Communication error: {ex.Message}");
-                return false; // Communication failed
+                Console.WriteLine("Error: Incomplete data received.");
+                return false; // Data reception failed
             }
         }
+
 
         private void UpdateChart()
         {
@@ -174,6 +174,25 @@ namespace Quantum_measurement_UI
             }
         }
 
+        private void UpdateHeatmap()
+        {
+            heatValues.Clear(); // Clear the previous values
+
+            // Assuming the correlation matrix is 8x8
+            int matrixSize = 8;
+
+            // Iterate through the corrMatrixBuffer and populate heatValues
+            for (int y = 0; y < matrixSize; y++)
+            {
+                for (int x = 0; x < matrixSize; x++)
+                {
+                    int index = y * matrixSize + x;
+                    heatValues.Add(new HeatPoint(x, y, corrMatrixBuffer[index]));
+                }
+            }
+        }
+
+
         private void StopButton_Click(object sender, RoutedEventArgs e)
         {
             cancellationTokenSource.Cancel();
@@ -184,6 +203,7 @@ namespace Quantum_measurement_UI
         {
             cancellationTokenSource.Cancel();
             pipeClient?.Dispose(); // Clean up the named pipe client
+            corrPipeClient?.Dispose(); // Clean up the named pipe client
             motorController.Shutdown(); // Properly shut down the motor controller when closing
             base.OnClosed(e);
         }
