@@ -132,32 +132,40 @@ namespace Quantum_measurement_UI
 
         private async Task<bool> RequestAndReceiveDataAsync()
         {
-            // Send a request to the server
-            byte[] request = BitConverter.GetBytes((short)1);
-            await pipeClient.WriteAsync(request, 0, request.Length);
-            // await pipeClient.FlushAsync(); // Uncomment if necessary
-            await corrPipeClient.WriteAsync(request, 0, request.Length);
-            // await corrPipeClient.FlushAsync(); // Uncomment if necessary
-
-            // Receive data from the server
-            byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
-            byte[] corrBufferBytes = new byte[64 * sizeof(double)];
-            int bytesRead = await pipeClient.ReadAsync(dataBufferBytes, 0, dataBufferBytes.Length);
-            int corrBytesRead = await corrPipeClient.ReadAsync(corrBufferBytes, 0, corrBufferBytes.Length);
-
-            if (bytesRead == dataBufferBytes.Length && corrBytesRead == corrBufferBytes.Length)
+            try
             {
-                Buffer.BlockCopy(dataBufferBytes, 0, dataBuffer, 0, dataBufferBytes.Length);
-                Buffer.BlockCopy(corrBufferBytes, 0, corrMatrixBuffer, 0, corrBufferBytes.Length);
-                Console.WriteLine("Data is received");
-                return true; // Data received successfully
+                // Send a request to the server
+                byte[] request = BitConverter.GetBytes((short)1);
+                await pipeClient.WriteAsync(request, 0, request.Length);
+                await corrPipeClient.WriteAsync(request, 0, request.Length);
+
+                // Receive data from the server
+                byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
+                byte[] corrBufferBytes = new byte[64 * sizeof(double)];
+
+                int bytesRead = await pipeClient.ReadAsync(dataBufferBytes, 0, dataBufferBytes.Length);
+                int corrBytesRead = await corrPipeClient.ReadAsync(corrBufferBytes, 0, corrBufferBytes.Length);
+
+                if (bytesRead == dataBufferBytes.Length && corrBytesRead == corrBufferBytes.Length)
+                {
+                    Buffer.BlockCopy(dataBufferBytes, 0, dataBuffer, 0, dataBufferBytes.Length);
+                    Buffer.BlockCopy(corrBufferBytes, 0, corrMatrixBuffer, 0, corrBufferBytes.Length);
+                    Console.WriteLine("Data is received");
+                    return true; // Data received successfully
+                }
+                else
+                {
+                    Console.WriteLine("Error: Incomplete data received.");
+                    return false; // Data reception failed
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Console.WriteLine("Error: Incomplete data received.");
-                return false; // Data reception failed
+                Console.WriteLine($"Communication error: {ex.Message}");
+                return false; // Communication failed
             }
         }
+
 
 
         private void UpdateChart()
