@@ -64,24 +64,25 @@ extern "C" int handleClientRequests(HANDLE hPipe, short* data, double* corrMatri
 		return 1;  // Error reading the request
 	}
 
-	//std::cout << "Received request from client, sending data...\n";
+	std::cout << "Received request from client, sending data...\n";
 
 	// Send a specific number of bytes of a specific segment of `data` or corrMatrix to the client
-	DWORD bytesWritten;
-	if (choice == 0) {
-		// Calculate the starting position for the segment to send
-		short* segmentStart = data + (segmentIndex * (bytesToSend / sizeof(short))); // Calculate the starting point
-		success = WriteFile(hPipe, segmentStart, bytesToSend, &bytesWritten, NULL);
-	}
-	else if(choice == 1) {
-		// Calculate the starting position for the segment to send
-		double* segmentStart = corrMatrix; // Calculate the starting point
-		success = WriteFile(hPipe, segmentStart, bytesToSend, &bytesWritten, NULL);
-
-	}
+	DWORD bytesWritten1;
+	DWORD bytesWritten2;
+	
+	// Calculate the starting position for the segment to send
+	short* segmentStart = data + (segmentIndex * (bytesToSend / sizeof(short))); // Calculate the starting point
+	success = WriteFile(hPipe, segmentStart, 200, &bytesWritten1, NULL);
+	
+	
+	// Calculate the starting position for the segment to send
+	
+	success = WriteFile(hPipe, corrMatrix, 512, &bytesWritten2, NULL);
 
 	
-	if (!success || bytesWritten != bytesToSend)
+
+	
+	if (!success || bytesWritten1 != 200 || bytesWritten2 != 512)
 	{
 		std::cerr << "Failed to send data to client.\n";
 		return 1;  // Error sending the data

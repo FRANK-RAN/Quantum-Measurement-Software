@@ -1,24 +1,23 @@
 ﻿using LiveCharts;
+using LiveCharts.Defaults;
 using LiveCharts.Wpf;
+using MotorControl;
 using System;
+using System.Collections.ObjectModel;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
-using MotorControl;
-using LiveCharts.Defaults;
-using Windows.Foundation.Collections;
 
 namespace Quantum_measurement_UI
 {
     public partial class MainWindow : Window
     {
-       
         private const string PipeName = "DataPipe";
         private const string CorrPipeName = "CorrMatrixPipe";
         private const int DataPoints = 100;
-        private const double UpdateInterval = 100; // milliseconds
+        private const double UpdateInterval = 50; // milliseconds
 
         private short[] dataBuffer = new short[DataPoints];
         private double[] corrMatrixBuffer = new double[64];
@@ -36,13 +35,16 @@ namespace Quantum_measurement_UI
 
         public ChartValues<HeatPoint> heatValues { get; set; }
 
-
+        // Added for PixelChart
+        public SeriesCollection PixelSeriesCollection { get; set; }
+        public ChartValues<double> PixelValues { get; set; }
+        private int selectedRow = 0;
+        private int selectedColumn = 0;
 
         public MainWindow()
         {
             InitializeComponent();
             InitializePipeClient();
-            
 
             // Initialize the chart series
             ChannelAValues = new ChartValues<double>();
@@ -68,36 +70,64 @@ namespace Quantum_measurement_UI
                 }
             };
 
-
-            // Set the fixed Y-axis range for the SignalChart
-            SignalChart.AxisY[0].MinValue = -10000;  // Replace with your minimum value
-            SignalChart.AxisY[0].MaxValue = 10000;  // Replace with your maximum value
+            // Removed AxisY definitions from code-behind
+            // The AxisY definitions are now only in XAML
 
             SignalChart.Series = SeriesCollection;
 
             // Initialize MotorController at the class level
             motorController = new MotorController();
 
+            // Initialize heatmap values (8x8 grid)
+            heatValues = new ChartValues<HeatPoint>();
 
-            // Initialize heatmap values (3x2 grid)
-            heatValues = new ChartValues<HeatPoint> {};
+            InitializeHeatValues();
 
-            HeatSeries.Values = heatValues; // Assign values directly
+            // Initialize PixelValues and PixelSeriesCollection
+            PixelValues = new ChartValues<double>();
+            PixelSeriesCollection = new SeriesCollection
+            {
+                new LineSeries
+                {
+                    Title = "Selected Pixel",
+                    Values = PixelValues,
+                    PointGeometry = null,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
+                }
+            };
 
+            // Removed AxisY definitions from code-behind for PixelChart
+            // The AxisY definitions are now only in XAML
+
+            PixelChart.Series = PixelSeriesCollection;
 
             StartDataUpdates();
         }
 
- 
+        // Initialize heatValues with the correct size (e.g., 8x8 matrix)
+        private void InitializeHeatValues()
+        {
+            int matrixSize = 8; // Assuming an 8x8 correlation matrix
+            for (int x = 0; x < matrixSize; x++)
+            {
+                for (int y = 0; y < matrixSize; y++)
+                {
+                    // Initially set to zero or any default value
+                    heatValues.Add(new HeatPoint(x, y, 0.0));
+                }
+            }
+            HeatSeries.Values = heatValues; // Set once
+        }
 
         private void InitializePipeClient()
         {
             pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
             pipeClient.Connect();
-            Console.WriteLine("Connected to server.");
+            Console.WriteLine("Data Pipe Connected to server.");
             corrPipeClient = new NamedPipeClientStream(".", CorrPipeName, PipeDirection.InOut);
             corrPipeClient.Connect();
-            Console.WriteLine("Connected to server.");
+            Console.WriteLine("Correlation Matrix Connected to server.");
         }
 
         private void StartDataUpdates()
@@ -119,6 +149,7 @@ namespace Quantum_measurement_UI
                         // Update the chart with new data
                         Dispatcher.Invoke(() => UpdateChart());
                         Dispatcher.Invoke(() => UpdateHeatmap());
+                        Dispatcher.Invoke(() => UpdatePixelChart());
                     }
 
                     await Task.Delay((int)UpdateInterval);
@@ -136,21 +167,28 @@ namespace Quantum_measurement_UI
             {
                 // Send a request to the server
                 byte[] request = BitConverter.GetBytes((short)1);
+
+                // Check if two pipes are connected
+                if (pipeClient.IsConnected && corrPipeClient.IsConnected)
+                {
+                    Console.WriteLine("Two pipes are connected.");
+                }
+
                 await pipeClient.WriteAsync(request, 0, request.Length);
-                await corrPipeClient.WriteAsync(request, 0, request.Length);
+                Console.WriteLine("Request sent to server.");
 
                 // Receive data from the server
                 byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
                 byte[] corrBufferBytes = new byte[64 * sizeof(double)];
 
                 int bytesRead = await pipeClient.ReadAsync(dataBufferBytes, 0, dataBufferBytes.Length);
-                int corrBytesRead = await corrPipeClient.ReadAsync(corrBufferBytes, 0, corrBufferBytes.Length);
+                int corrBytesRead = await pipeClient.ReadAsync(corrBufferBytes, 0, corrBufferBytes.Length);
 
                 if (bytesRead == dataBufferBytes.Length && corrBytesRead == corrBufferBytes.Length)
                 {
                     Buffer.BlockCopy(dataBufferBytes, 0, dataBuffer, 0, dataBufferBytes.Length);
                     Buffer.BlockCopy(corrBufferBytes, 0, corrMatrixBuffer, 0, corrBufferBytes.Length);
-                    Console.WriteLine("Data is received");
+                    Console.WriteLine("Data is received.");
                     return true; // Data received successfully
                 }
                 else
@@ -165,8 +203,6 @@ namespace Quantum_measurement_UI
                 return false; // Communication failed
             }
         }
-
-
 
         private void UpdateChart()
         {
@@ -184,22 +220,40 @@ namespace Quantum_measurement_UI
 
         private void UpdateHeatmap()
         {
-            heatValues.Clear(); // Clear the previous values
+            // Update the heatValues in place
+            int matrixSize = 8; // Assuming 8x8 correlation matrix
 
-            // Assuming the correlation matrix is 8x8
-            int matrixSize = 8;
-
-            // Iterate through the corrMatrixBuffer and populate heatValues
-            for (int y = 0; y < matrixSize; y++)
+            // Update the value of each HeatPoint
+            for (int x = 0; x < matrixSize; x++)
             {
-                for (int x = 0; x < matrixSize; x++)
+                for (int y = 0; y < matrixSize; y++)
                 {
-                    int index = y * matrixSize + x;
-                    heatValues.Add(new HeatPoint(x, y, corrMatrixBuffer[index]));
+                    int index = x * matrixSize + y;
+
+                    // Update the HeatPoint with the new value
+                    heatValues[index].Weight = Math.Round(corrMatrixBuffer[index], 2);
                 }
             }
         }
 
+        // Added method to update the PixelChart
+        private void UpdatePixelChart()
+        {
+            int index = selectedRow * 8 + selectedColumn;
+            double selectedValue = corrMatrixBuffer[index];
+
+            // Update the SelectedPixelValue TextBox
+            SelectedPixelValue.Text = selectedValue.ToString("F2");
+
+            // Add the new value to the PixelValues series
+            PixelValues.Add(selectedValue);
+
+            // Keep the series length manageable
+            if (PixelValues.Count > 100) // Keep last 100 points
+            {
+                PixelValues.RemoveAt(0);
+            }
+        }
 
         private void StopButton_Click(object sender, RoutedEventArgs e)
         {
@@ -215,8 +269,6 @@ namespace Quantum_measurement_UI
             motorController.Shutdown(); // Properly shut down the motor controller when closing
             base.OnClosed(e);
         }
-
- 
 
         // Event Handler for Move Relative Button
         private void MoveRelativeButton_Click(object sender, RoutedEventArgs e)
@@ -290,6 +342,38 @@ namespace Quantum_measurement_UI
                 // Get current position
                 motorController.GetCurrentPosition(motorNumber, out int currentPosition);
                 CurrentPosition.Text = currentPosition.ToString(); // Update the CurrentPosition TextBox
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+            }
+        }
+
+        // Event Handler for Confirm Pixel Selection Button
+        private void ConfirmPixelSelection_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int row = int.Parse(RowInput.Text);
+                int col = int.Parse(ColumnInput.Text);
+
+                if (row < 0 || row > 7 || col < 0 || col > 7)
+                {
+                    MessageBox.Show("Row and Column values must be between 0 and 7.");
+                    return;
+                }
+
+                selectedRow = row;
+                selectedColumn = col;
+
+                int index = row * 8 + col;
+                double selectedValue = corrMatrixBuffer[index];
+
+                // Display the selected value
+                SelectedPixelValue.Text = selectedValue.ToString("F2"); // Format with 2 decimal places
+
+                // Clear the PixelValues series when a new pixel is selected
+                PixelValues.Clear();
             }
             catch (Exception ex)
             {
