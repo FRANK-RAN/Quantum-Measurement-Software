@@ -3,12 +3,13 @@ using LiveCharts.Defaults;
 using LiveCharts.Wpf;
 using MotorControl;
 using System;
-using System.Collections.ObjectModel;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using System.Diagnostics;
+using System.Windows.Controls;
 
 namespace Quantum_measurement_UI
 {
@@ -26,8 +27,16 @@ namespace Quantum_measurement_UI
         private Task updateTask;
         private CancellationTokenSource cancellationTokenSource;
 
-        // Declare motorController as a class-level variable so it's accessible across methods
+        // MotorController instance for controlling the motor
         private MotorController motorController;
+
+        // Fields for managing automatic continuous motion
+        private CancellationTokenSource motionCancellationTokenSource; // For cancelling motion
+        private bool isPaused = false; // Flag to indicate if motion is paused
+        private object pauseLock = new object(); // Lock object for pause/resume synchronization
+
+        // Fields for updating motor positions automatically
+        private CancellationTokenSource motorPositionCancellationTokenSource; // For cancelling position updates
 
         public SeriesCollection SeriesCollection { get; set; }
         public ChartValues<double> ChannelAValues { get; set; }
@@ -35,7 +44,7 @@ namespace Quantum_measurement_UI
 
         public ChartValues<HeatPoint> heatValues { get; set; }
 
-        // Added for PixelChart
+        // For PixelChart
         public SeriesCollection PixelSeriesCollection { get; set; }
         public ChartValues<double> PixelValues { get; set; }
         private int selectedRow = 0;
@@ -70,17 +79,16 @@ namespace Quantum_measurement_UI
                 }
             };
 
-            // Removed AxisY definitions from code-behind
-            // The AxisY definitions are now only in XAML
-
             SignalChart.Series = SeriesCollection;
 
-            // Initialize MotorController at the class level
-            motorController = new MotorController();
+            // Initialize the signal chart data
+            InitializeSignalChart();
+
+            // Initialize MotorController instance
+            //motorController = new MotorController();
 
             // Initialize heatmap values (8x8 grid)
             heatValues = new ChartValues<HeatPoint>();
-
             InitializeHeatValues();
 
             // Initialize PixelValues and PixelSeriesCollection
@@ -97,12 +105,22 @@ namespace Quantum_measurement_UI
                 }
             };
 
-            // Removed AxisY definitions from code-behind for PixelChart
-            // The AxisY definitions are now only in XAML
-
             PixelChart.Series = PixelSeriesCollection;
 
             StartDataUpdates();
+            //StartMotorPositionUpdates(); // Start updating motor positions automatically
+        }
+
+        // Initialize the signal chart data with zeros
+        private void InitializeSignalChart()
+        {
+            int dataPointCount = DataPoints / 2;
+
+            for (int i = 0; i < dataPointCount; i++)
+            {
+                ChannelAValues.Add(0);
+                ChannelBValues.Add(0);
+            }
         }
 
         // Initialize heatValues with the correct size (e.g., 8x8 matrix)
@@ -120,28 +138,84 @@ namespace Quantum_measurement_UI
             HeatSeries.Values = heatValues; // Set once
         }
 
+        // Initialize the named pipe clients for data communication
         private void InitializePipeClient()
         {
             pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
             pipeClient.Connect();
             Console.WriteLine("Data Pipe Connected to server.");
+
             corrPipeClient = new NamedPipeClientStream(".", CorrPipeName, PipeDirection.InOut);
             corrPipeClient.Connect();
             Console.WriteLine("Correlation Matrix Connected to server.");
         }
 
+        // Start the task to update data periodically
         private void StartDataUpdates()
         {
             cancellationTokenSource = new CancellationTokenSource();
             updateTask = Task.Run(() => UpdateData(cancellationTokenSource.Token));
         }
 
+        // Start the task to update motor positions periodically
+        private void StartMotorPositionUpdates()
+        {
+            motorPositionCancellationTokenSource = new CancellationTokenSource();
+            Task.Run(() => UpdateMotorPosition(motorPositionCancellationTokenSource.Token));
+        }
+
+        // Periodically update the motor position
+        private async Task UpdateMotorPosition(CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    // Update the motor position on the UI thread
+                    Dispatcher.Invoke(() =>
+                    {
+                        // Read the current position of the selected motor
+                        int motorNumber = GetSelectedMotor();
+
+                        bool status = motorController.GetCurrentPosition(motorNumber, out int currentPosition);
+
+                        if (status)
+                        {
+                            CurrentPosition.Text = currentPosition.ToString();
+                        }
+                        else
+                        {
+                            CurrentPosition.Text = "Error";
+                        }
+                    });
+
+                    await Task.Delay(50, cancellationToken); // Wait for 50 ms
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Task was canceled
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => MessageBox.Show($"Error updating motor position: {ex.Message}"));
+            }
+        }
+
+        // Periodically request and receive data from the server
         private async Task UpdateData(CancellationToken cancellationToken)
         {
             try
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
+                    // Wait if paused
+                    if (isPaused)
+                    {
+                        await Task.Delay(100, cancellationToken);
+                        continue;
+                    }
+
                     bool success = await RequestAndReceiveDataAsync();
 
                     if (success)
@@ -152,8 +226,12 @@ namespace Quantum_measurement_UI
                         Dispatcher.Invoke(() => UpdatePixelChart());
                     }
 
-                    await Task.Delay((int)UpdateInterval);
+                    await Task.Delay((int)UpdateInterval, cancellationToken);
                 }
+            }
+            catch (TaskCanceledException)
+            {
+                // Task was canceled
             }
             catch (Exception ex)
             {
@@ -161,6 +239,7 @@ namespace Quantum_measurement_UI
             }
         }
 
+        // Request data from the server and receive it
         private async Task<bool> RequestAndReceiveDataAsync()
         {
             try
@@ -204,23 +283,31 @@ namespace Quantum_measurement_UI
             }
         }
 
+        // Update the signal chart with new data (optimized)
         private void UpdateChart()
         {
-            // Clear previous values
-            ChannelAValues.Clear();
-            ChannelBValues.Clear();
+            int dataPointCount = DataPoints / 2;
 
-            // Populate new values
-            for (int i = 0; i < DataPoints / 2; i++)
+            // If the collections are empty, initialize them
+            if (ChannelAValues.Count == 0)
             {
-                ChannelAValues.Add(dataBuffer[i * 2] / 32768.0 * 10000); // Scale appropriately
-                ChannelBValues.Add(dataBuffer[i * 2 + 1] / 32768.0 * 10000); // Scale appropriately
+                for (int i = 0; i < dataPointCount; i++)
+                {
+                    ChannelAValues.Add(0);
+                    ChannelBValues.Add(0);
+                }
+            }
+
+            for (int i = 0; i < dataPointCount; i++)
+            {
+                ChannelAValues[i] = dataBuffer[i * 2] / 32768.0 * 10000;
+                ChannelBValues[i] = dataBuffer[i * 2 + 1] / 32768.0 * 10000;
             }
         }
 
+        // Update the heatmap chart with new data (with x and y indices swapped)
         private void UpdateHeatmap()
         {
-            // Update the heatValues in place
             int matrixSize = 8; // Assuming 8x8 correlation matrix
 
             // Update the value of each HeatPoint
@@ -228,7 +315,7 @@ namespace Quantum_measurement_UI
             {
                 for (int y = 0; y < matrixSize; y++)
                 {
-                    int index = x * matrixSize + y;
+                    int index = y * matrixSize + x; // Swapped x and y
 
                     // Update the HeatPoint with the new value
                     heatValues[index].Weight = Math.Round(corrMatrixBuffer[index], 2);
@@ -236,10 +323,10 @@ namespace Quantum_measurement_UI
             }
         }
 
-        // Added method to update the PixelChart
+        // Update the pixel chart with the selected pixel value over time (indices adjusted)
         private void UpdatePixelChart()
         {
-            int index = selectedRow * 8 + selectedColumn;
+            int index = selectedColumn * 8 + selectedRow; // Swapped row and column
             double selectedValue = corrMatrixBuffer[index];
 
             // Update the SelectedPixelValue TextBox
@@ -255,32 +342,75 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private void StopButton_Click(object sender, RoutedEventArgs e)
+        // Event handler for the Terminate button click
+        private void TerminateButton_Click(object sender, RoutedEventArgs e)
         {
-            cancellationTokenSource.Cancel();
-            Console.WriteLine("Visualization stopped.");
+            Application.Current.Shutdown();
+            Console.WriteLine("Application terminated.");
         }
 
+        // Event handler for the Pause button click
+        private void PauseButton_Click(object sender, RoutedEventArgs e)
+        {
+            isPaused = true;
+            Console.WriteLine("Visualization paused.");
+        }
+
+        // Event handler for the Resume button click
+        private void ResumeButton_Click(object sender, RoutedEventArgs e)
+        {
+            isPaused = false;
+            Console.WriteLine("Visualization resumed.");
+        }
+
+        // Clean up resources when the window is closed
         protected override void OnClosed(EventArgs e)
         {
             cancellationTokenSource.Cancel();
+            motorPositionCancellationTokenSource?.Cancel();
             pipeClient?.Dispose(); // Clean up the named pipe client
             corrPipeClient?.Dispose(); // Clean up the named pipe client
             motorController.Shutdown(); // Properly shut down the motor controller when closing
+            StopContinuousMotion(); // Stop any ongoing motion
             base.OnClosed(e);
         }
 
-        // Event Handler for Move Relative Button
-        private void MoveRelativeButton_Click(object sender, RoutedEventArgs e)
+        // Event handler for Move Relative button click
+        private async void MoveRelativeButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 int motorNumber = GetSelectedMotor();
                 int relativeSteps = int.Parse(RelativeSteps.Text); // Get relative steps from TextBox
 
-                // Perform the relative move
-                motorController.MoveRelative(motorNumber, relativeSteps);
+                // Perform the relative move on the UI thread
+                bool moveStatus = false;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    moveStatus = motorController.MoveRelative(motorNumber, relativeSteps);
+                });
+
+                if (!moveStatus)
+                {
+                    MessageBox.Show("Failed to move the motor.");
+                    return;
+                }
+
+                // Wait until motion is done
+                bool isMotionDone = false;
+                while (!isMotionDone)
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        motorController.CheckForErrors();
+                        motorController.IsMotionDone(motorNumber, out isMotionDone);
+                    });
+                    await Task.Delay(50);
+                }
+
                 MessageBox.Show($"Moved motor {motorNumber} by {relativeSteps} steps.");
+
+                // Current position will be updated automatically
             }
             catch (Exception ex)
             {
@@ -288,20 +418,42 @@ namespace Quantum_measurement_UI
             }
         }
 
-        // Event Handler for Move to Target Button
-        private void MoveToTargetButton_Click(object sender, RoutedEventArgs e)
+        // Event handler for Move to Target button click
+        private async void MoveToTargetButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 int motorNumber = GetSelectedMotor();
                 int targetPosition = int.Parse(PositionTarget.Text); // Get target position from TextBox
 
-                // Move the motor to the target position
-                motorController.GetCurrentPosition(motorNumber, out int currentPosition);
-                int relativeSteps = targetPosition - currentPosition;
+                // Move the motor to the target position on the UI thread
+                bool moveStatus = false;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    moveStatus = motorController.MoveToPosition(motorNumber, targetPosition);
+                });
 
-                motorController.MoveRelative(motorNumber, relativeSteps);
+                if (!moveStatus)
+                {
+                    MessageBox.Show("Failed to move the motor.");
+                    return;
+                }
+
+                // Wait until motion is done
+                bool isMotionDone = false;
+                while (!isMotionDone)
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        motorController.CheckForErrors();
+                        motorController.IsMotionDone(motorNumber, out isMotionDone);
+                    });
+                    await Task.Delay(50);
+                }
+
                 MessageBox.Show($"Moved motor {motorNumber} to position {targetPosition}.");
+
+                // Current position will be updated automatically
             }
             catch (Exception ex)
             {
@@ -309,16 +461,30 @@ namespace Quantum_measurement_UI
             }
         }
 
-        // Event Handler for Set Zero Position Button
-        private void SetZeroPositionButton_Click(object sender, RoutedEventArgs e)
+        // Event handler for Set Zero Position button click
+        private async void SetZeroPositionButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 int motorNumber = GetSelectedMotor();
 
-                // Set the zero position
-                motorController.SetZeroPosition(motorNumber);
-                MessageBox.Show($"Set motor {motorNumber} position to zero.");
+                // Set the zero position on the UI thread
+                bool status = false;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    status = motorController.SetZeroPosition(motorNumber);
+                });
+
+                if (!status)
+                {
+                    MessageBox.Show($"Failed to set zero position for motor {motorNumber}.");
+                }
+                else
+                {
+                    MessageBox.Show($"Set motor {motorNumber} position to zero.");
+                }
+
+                // Current position will be updated automatically
             }
             catch (Exception ex)
             {
@@ -332,24 +498,7 @@ namespace Quantum_measurement_UI
             return MotorSelection.SelectedIndex + 1; // Assuming the ComboBox for motor selection is 0-indexed
         }
 
-        // Event Handler for Refresh Position Button
-        private void RefreshPositionButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                int motorNumber = GetSelectedMotor();
-
-                // Get current position
-                motorController.GetCurrentPosition(motorNumber, out int currentPosition);
-                CurrentPosition.Text = currentPosition.ToString(); // Update the CurrentPosition TextBox
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}");
-            }
-        }
-
-        // Event Handler for Confirm Pixel Selection Button
+        // Event handler for Confirm Pixel Selection button click (indices adjusted)
         private void ConfirmPixelSelection_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -366,7 +515,7 @@ namespace Quantum_measurement_UI
                 selectedRow = row;
                 selectedColumn = col;
 
-                int index = row * 8 + col;
+                int index = selectedColumn * 8 + selectedRow; // Swapped row and column
                 double selectedValue = corrMatrixBuffer[index];
 
                 // Display the selected value
@@ -378,6 +527,131 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 MessageBox.Show($"Error: {ex.Message}");
+            }
+        }
+
+        // Event handler for Start Motion button click
+        private void StartMotionButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int timePerMoveMs = int.Parse(TimePerMove.Text); // Time between moves in milliseconds
+                int stepsPerMove = int.Parse(StepsPerMove.Text); // Steps to move each time
+                int totalNumberOfMoves = int.Parse(TotalNumberOfMoves.Text); // Total number of moves
+
+                int motorNumber = GetSelectedMotor();
+
+                // Start the automatic continuous motion
+                StartAutomaticMotion(motorNumber, timePerMoveMs, stepsPerMove, totalNumberOfMoves);
+                MessageBox.Show($"Started automatic motion for motor {motorNumber}.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+            }
+        }
+
+        // Event handler for Stop Motion button click
+        private void StopMotionButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Cancel the motion
+            StopContinuousMotion();
+            MessageBox.Show("Automatic motion stopped.");
+        }
+
+        // Start the automatic continuous motion task
+        private void StartAutomaticMotion(int motorNumber, int timePerMoveMs, int stepsPerMove, int totalNumberOfMoves)
+        {
+            // Cancel any existing motion
+            StopContinuousMotion();
+
+            // Create a new CancellationTokenSource
+            motionCancellationTokenSource = new CancellationTokenSource();
+
+            // Start the motion task
+            Task.Run(async () =>
+            {
+                try
+                {
+                    for (int i = 0; i < totalNumberOfMoves; i++)
+                    {
+                        // Check for cancellation
+                        if (motionCancellationTokenSource.Token.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        // Handle pause
+                        lock (pauseLock)
+                        {
+                            while (isPaused)
+                            {
+                                Monitor.Wait(pauseLock);
+                            }
+                        }
+
+                        bool moveStatus = false;
+
+                        // Move the motor on the UI thread
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            moveStatus = motorController.MoveRelative(motorNumber, stepsPerMove);
+                        });
+
+                        if (!moveStatus)
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                MessageBox.Show("Failed to move the motor.");
+                            });
+                            break;
+                        }
+
+                        // Wait until motion is done
+                        bool isMotionDone = false;
+                        while (!isMotionDone)
+                        {
+                            // Check for errors and motion status on the UI thread
+                            await Dispatcher.InvokeAsync(() =>
+                            {
+                                motorController.CheckForErrors();
+                                motorController.IsMotionDone(motorNumber, out isMotionDone);
+                            });
+
+                            await Task.Delay(50, motionCancellationTokenSource.Token);
+
+                            // Handle pause
+                            lock (pauseLock)
+                            {
+                                while (isPaused)
+                                {
+                                    Monitor.Wait(pauseLock);
+                                }
+                            }
+                        }
+
+                        // Wait for the specified time interval
+                        await Task.Delay(timePerMoveMs, motionCancellationTokenSource.Token);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Motion was canceled
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() => MessageBox.Show($"Error during motion: {ex.Message}"));
+                }
+            });
+        }
+
+        // Stop the automatic continuous motion
+        private void StopContinuousMotion()
+        {
+            if (motionCancellationTokenSource != null)
+            {
+                motionCancellationTokenSource.Cancel();
+                motionCancellationTokenSource = null;
             }
         }
     }
