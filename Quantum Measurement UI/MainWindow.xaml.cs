@@ -85,7 +85,7 @@ namespace Quantum_measurement_UI
             InitializeSignalChart();
 
             // Initialize MotorController instance
-            //motorController = new MotorController();
+            motorController = new MotorController();
 
             // Initialize heatmap values (8x8 grid)
             heatValues = new ChartValues<HeatPoint>();
@@ -108,7 +108,7 @@ namespace Quantum_measurement_UI
             PixelChart.Series = PixelSeriesCollection;
 
             StartDataUpdates();
-            //StartMotorPositionUpdates(); // Start updating motor positions automatically
+            StartMotorPositionUpdates(); // Start updating motor positions automatically
         }
 
         // Initialize the signal chart data with zeros
