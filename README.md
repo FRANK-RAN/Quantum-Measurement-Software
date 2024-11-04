@@ -15,6 +15,6 @@ The structure of the documentation is as follows:
 4. **CUDA Programming for Data Processing**: Provides a basic introduction to CUDA programming along with a detailed explanation of the CUDA code utilized.
 
 # Overview
-![Codebase Structure](./images/framework.png)
+![Codebase Structure](./Images/framework.png)
 
 
