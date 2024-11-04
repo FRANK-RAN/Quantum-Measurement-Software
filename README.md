@@ -25,7 +25,8 @@ The documentation is structured as follows:
 
 ### Figure 1 Explanation
 
-In *Figure 1: Codebase Structure*, the bottom section labeled "Gage Streaming" corresponds to the **GageStreamThruGPU** project, the "Presenter" section (using WPF and C#) and "View" (using XAML) correspond to the **Quantum Measurement UI** project, and the "Motor Control" and "Delay Stage Control" on the left side correspond to additional projects, including **MotorMove**. These components will be introduced below.
+In *Figure 1: Codebase Structure*, the bottom section labeled "Gage Streaming" corresponds to the **GageStreamThruGPU** project, where data acquisition via the Gage digitizer and GPU-based data processing occur. The "Presenter" section (using WPF and C#) and "View" (using XAML) correspond to the **Quantum Measurement UI** project, which handles frontend visualization and coordination. On the left side, "Motor Control" and "Delay Stage Control" represent additional components, such as **MotorMove**, which can be integrated into the system. These components are introduced in detail below.
+
 
 The codebase adopts the **MVP (Model-View-Presenter)** architecture. In this structure:
 
@@ -60,7 +61,6 @@ The **GageStreamThruGPU** directory manages data acquisition and GPU-based proce
 - **`DSPEquation_Simple.cu`**: A CUDA file that defines the logic for GPU-based data processing. Functions from this file are called within `StreamThruGPU_Simple.c` to perform high-performance computations on the data.
 - **`DSPEquation_Simple_CPU.c`**: This file defines the data processing logic in a single-threaded, CPU-based way. It serves as a verification tool to ensure the correctness of the CUDA processing logic.
 
-By dividing responsibilities across these projects, the codebase achieves a clear separation of interface, data processing, and GPU computation, allowing efficient real-time data visualization and analysis.
 
 ### 3. Other Projects [MotorMove]
 
