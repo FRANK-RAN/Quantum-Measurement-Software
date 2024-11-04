@@ -67,7 +67,7 @@ The codebase solution also supports integrating additional components, such as A
 
 This project is standalone with its own environment setup, allowing seamless integration. By using Visual Studio’s **project reference** feature, we can directly access classes and functions defined in this project from other parts of the solution. This approach eliminates the need to modify the environment of any project that references it. Details on how project references work will be covered in the **Project and Process Connections** section.
 
-To understand Figure 1: Codebase Structure*, the buttom Gage streaming corrwsponds to GageStreamThruGPU project, the presenter with wpf, c# and view with xaml in front of sicetists correspond to Quantum Measurement UI, and left side Motor control, delay stage control corresponds to other projects include MotorMove here.
+
 
 
 
