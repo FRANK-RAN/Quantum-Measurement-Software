@@ -1,21 +1,22 @@
 # QuantaMeasure Documentation
 
-# Introduction
-This is the formal documentation for the software QuantaMeasure which provides the scitistits efficient tools to view, analyze the measured quantum signals in real time. 
+## Introduction
 
-This documentation is intended for scientists with partial knowledge of computer science, aiming to help them understand the codebase, as well as provide instructions and insights for maintaining and updating the code's functionalities.
+Welcome to the official documentation for **QuantaMeasure**, a software solution designed to provide scientists with efficient tools for real-time viewing and analysis of measured quantum signals.
 
-The structure of the documentation is as follows:
+This documentation is intended for scientists with a foundational knowledge of computer science, offering guidance on understanding the codebase, as well as providing instructions and insights for maintaining and updating the software’s functionalities.
 
-1. **Overview**: Introduces the entire code structure, covering the frontend UI, the data acquisition and processing backend, and how these components connect efficiently.
+The documentation is structured as follows:
 
-2. **Software Development**: Explains the development of the Windows Presentation Foundation (WPF) application, including environment setup, component integration, and the visualization libraries used.
 
-3. **Data Acquisition and Processing System**: Details the data acquisition process via the Gage digitizer and outlines data processing configurations.
+# Table of Contents
 
-4. **CUDA Programming for Data Processing**: Provides a basic introduction to CUDA programming along with a detailed explanation of the CUDA code utilized.
+1. [Overview](#overview): Introduces the entire code structure, covering the frontend UI, the data acquisition and processing backend, and how these components connect efficiently.
+2. [Software Development](#software-development): Explains the development of the Windows Presentation Foundation (WPF) application, including environment setup, component integration, and the visualization libraries used.
+3. [Data Acquisition and Processing System](#data-acquisition-and-processing-system): Details the data acquisition process via the Gage digitizer and outlines data processing configurations.
+4. [CUDA Programming for Data Processing](#cuda-programming-for-data-processing): Provides a basic introduction to CUDA programming along with a detailed explanation of the CUDA code utilized.
+5. [Project and Process Connections](#project-and-process-connections): Provides a technical overview of how components are seamlessly connected, along with guidance on integrating additional components in the future.
 
-5. **Project and Process Connections**: Provides a technical overview of how components are seamlessly connected, along with guidance on integrating additional components in the future.
 
 # Overview
 
