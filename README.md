@@ -102,7 +102,7 @@ where \(i, j\) range from 1 to 8. The matrix is visualized below in *Figure 3: C
 After computing all cross-correlation matrices for one batch of data, we average them to obtain the mean cross-correlation matrix:
 
 $$
-\overline{C}_{ij} = \frac{1}{N} \sum_{k=1}^{N} C_{ij}^{(k)},
+\overline{C}_{i,j} = \frac{1}{N} \sum_{k=1}^{N} C_{i,j}^{(k)}
 $$
 
 where \(N\) is the total number of segments.
