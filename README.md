@@ -80,7 +80,7 @@ For each batch of data, the data is segmented into small segments. Each segment 
 A single segment of data is arranged as:
 
 $$
-[A_1, B_1, A_2, B_2, \ldots, A_{16}, B_{16}],
+[A_1, B_1, A_2, B_2, \ldots, A_{16}, B_{16}]
 $$
 
 where \(A\) and \(B\) denote the channels. *Figure 2: Signals* depicts the signals from the digitizer. You can see that for one segment of data, there are two channels, and for each channel, one segment captures two pulses of waves. The cross-correlation is computed between the two channels of signals within one segment.
@@ -91,7 +91,7 @@ where \(A\) and \(B\) denote the channels. *Figure 2: Signals* depicts the signa
 The cross-correlation between the two channels within one segment is defined as:
 
 $$
-C_{ij} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right),
+C_{ij} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right)
 $$
 
 where \(i, j\) range from 1 to 8. The matrix is visualized below in *Figure 3: Cross-Correlation Matrix*.
