@@ -75,30 +75,40 @@ In this section, we introduce CUDA programming for computing the cross-correlati
 
 ## Mathematical Definitions Behind Cross-Correlation
 
-For each batch of data, the data is segmented into smaller segments, each consisting of 32 data points from two channels—Channel A and Channel B. For each segment, we need to compute one cross-correlation matrix and then average all computed cross-correlation matrices to obtain the averaged cross-correlation matrix for the batch.
+For each batch of data, the data is segmented into small segments. Each segment consists of 32 data points from two channels—Channel A and Channel B. For each segment, we need to compute one cross-correlation matrix and then average all computed cross-correlation matrices to obtain the averaged cross-correlation matrix for the batch.
 
-A single segment of data is arranged as follows:
+A single segment of data is arranged as:
 
-\[
+$$
 [A_1, B_1, A_2, B_2, \ldots, A_{16}, B_{16}],
-\]
+$$
 
-where \( A \) and \( B \) denote the two channels. *Figure 2: Signals* depicts the signals from the digitizer. For one segment of data, there are two channels, and each channel captures two pulses of waves in a segment. The cross-correlation is computed between the two channels within one segment.
+where \(A\) and \(B\) denote the channels. *Figure 2: Signals* depicts the signals from the digitizer. You can see that for one segment of data, there are two channels, and for each channel, one segment captures two pulses of waves. The cross-correlation is computed between the two channels of signals within one segment.
+
+![Signals](./Images/signals.png)
+*Figure 2: Signals*
 
 The cross-correlation between the two channels within one segment is defined as:
 
-\[
-C_{i,j} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right),
-\]
+$$
+C_{ij} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right),
+$$
 
-where \( i, j \) range from 1 to 8. The matrix is visualized below in *Figure 3: Cross-Correlation Matrix*.
+where \(i, j\) range from 1 to 8. The matrix is visualized below in *Figure 3: Cross-Correlation Matrix*.
+
+![Cross-Correlation Matrix](./Images/correlationMatrixHeatMap.png)
+*Figure 3: Cross-Correlation Matrix*
 
 After computing all cross-correlation matrices for one batch of data, we average them to obtain the mean cross-correlation matrix:
 
-\[
-\overline{C}_{i,j} = \frac{1}{N} \sum_{k=1}^{N} C_{i,j}^{(k)},
-\]
+$$
+\overline{C}_{ij} = \frac{1}{N} \sum_{k=1}^{N} C_{ij}^{(k)},
+$$
 
-where \( N \) is the total number of segments.
+where \(N\) is the total number of segments.
 
-For one batch of data—for example, with 1 million segments—after computation, we obtain a mean cross-correlation matrix consisting of 64 elements.
+In conclusion, for one batch of data—for example, with 1 million segments—after the computation, we obtain a mean cross-correlation matrix consisting of 64 elements.
+
+## CUDA Programming
+
+First, we introduce the basics of CUDA programming, followed by the design of the CUDA program at the kernel level and memory optimization techniques.
