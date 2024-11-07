@@ -105,6 +105,7 @@ $$
 \overline{C}_{i,j} = \frac{1}{N} \sum_{k=1}^{N} C_{i,j}^{(k)}
 $$
 
+
 where \(N\) is the total number of segments.
 
 In conclusion, for one batch of data—for example, with 1 million segments—after the computation, we obtain a mean cross-correlation matrix consisting of 64 elements.
