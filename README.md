@@ -71,11 +71,11 @@ This project is standalone with its own environment setup, allowing seamless int
 
 # CUDA Programming for Data Processing
 
-In this section, we introduce CUDA programming for computing the cross-correlation matrix. We begin with the mathematical foundations behind the cross-correlation computation, followed by detailed explanations of the CUDA programming aspects and performance analyses for CUDA optimizations.
+This section introduces CUDA programming for computing the cross-correlation matrix. The discussion begins with the mathematical foundations of cross-correlation computation, followed by detailed explanations of the CUDA programming aspects and performance analyses for CUDA optimizations.
 
 ## Mathematical Definitions Behind Cross-Correlation
 
-For each batch of data, the data is segmented into small segments. Each segment consists of 32 data points from two channels—Channel A and Channel B. For each segment, we need to compute one cross-correlation matrix and then average all computed cross-correlation matrices to obtain the averaged cross-correlation matrix for the batch.
+For each batch of data, the data is segmented into smaller segments, with each segment consisting of 32 data points from two channels—Channel A and Channel B. For each segment, one cross-correlation matrix is computed, and then all computed cross-correlation matrices are averaged to obtain the overall cross-correlation matrix for the batch.
 
 A single segment of data is arranged as:
 
@@ -83,7 +83,7 @@ $$
 [A_1, B_1, A_2, B_2, \ldots, A_{16}, B_{16}]
 $$
 
-where \(A\) and \(B\) denote the channels. *Figure 2: Signals* depicts the signals from the digitizer. You can see that for one segment of data, there are two channels, and for each channel, one segment captures two pulses of waves. The cross-correlation is computed between the two channels of signals within one segment.
+where \( A \) and \( B \) denote the channels. *Figure 2: Signals* depicts the signals from the digitizer, illustrating that each segment of data consists of two channels, and for each channel, one segment captures two pulses of waves. The cross-correlation is computed between the two channels of signals within one segment.
 
 ![Signals](./Images/signals.png)
 *Figure 2: Signals*
@@ -91,25 +91,31 @@ where \(A\) and \(B\) denote the channels. *Figure 2: Signals* depicts the signa
 The cross-correlation between the two channels within one segment is defined as:
 
 $$
-C_{ij} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right)
+C_{i,j} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right)
 $$
 
-where \(i, j\) range from 1 to 8. The matrix is visualized below in *Figure 3: Cross-Correlation Matrix*.
+where \( i, j \) range from 1 to 8. The matrix is visualized below in *Figure 3: Cross-Correlation Matrix*.
 
 ![Cross-Correlation Matrix](./Images/correlationMatrixHeatMap.png)
 *Figure 3: Cross-Correlation Matrix*
 
-After computing all cross-correlation matrices for one batch of data, we average them to obtain the mean cross-correlation matrix:
+After computing all cross-correlation matrices for one batch of data, the matrices are averaged to obtain the mean cross-correlation matrix:
 
-$
+$$
 \overline{C}_{i,j} = \frac{1}{N} \sum_{k=1}^{N} C_{i,j}^{(k)}
-$
+$$
 
+where \( N \) is the total number of segments.
 
-where \(N\) is the total number of segments.
-
-In conclusion, for one batch of data—for example, with 1 million segments—after the computation, we obtain a mean cross-correlation matrix consisting of 64 elements.
+For one batch of data—for example, with 1 million segments—the final result is a mean cross-correlation matrix consisting of 64 elements.
 
 ## CUDA Programming
 
-First, we introduce the basics of CUDA programming, followed by the design of the CUDA program at the kernel level and memory optimization techniques.
+The CUDA programming was used to compute the mean cross correlation matrix for batchs of data. CUDA programming used will be introdcued in the section.
+
+The basics of CUDA programming are introduced first, followed by the design of the CUDA program at the kernel level and a discussion of memory optimization techniques. Finally, recommended learning resources are introcued to speed learning curve.
+
+### CUDA Porgramming Basics
+CUDA is a parallel programming platform and language developed by NVIDA. CUDA is highly optimized for NVIDA GPUs. CUDA provided C++ extension for programmers to write codes for computing. What CUDA is doing is compiling codes wrote by programmers to instructions run on GPU and
+
+
