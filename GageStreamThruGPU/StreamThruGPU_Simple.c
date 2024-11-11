@@ -55,7 +55,7 @@
 #define STREAM_BUFFERSZIZE	0x200000
 #define STM_SECTION _T("StmConfig")				// section name in ini file
 #define RAW_SIG_PIPE_NAME "\\\\.\\pipe\\DataPipe"
-#define COR_MAT_PIPE_NAME "\\\\.\\pipe\\CorrMatrixPipe"
+
 
 
 
@@ -1108,7 +1108,6 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 
 	if (useIPC) {
 		raw_signal_hPipe = createAndConnectPipe(RAW_SIG_PIPE_NAME, 0);
-		corr_matrix_hPipe = createAndConnectPipe(COR_MAT_PIPE_NAME, 0);
 	}
 	
 
@@ -1573,7 +1572,6 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 
 			if (NULL != pWorkBuffer && useIPC) {
 				int result = handleClientRequests(raw_signal_hPipe, pWorkBuffer, h_odata, 0, 200, 0);  // 200 is the number of bytes to send, check request from client and send data
-				int result2 = handleClientRequests(corr_matrix_hPipe, pWorkBuffer, h_odata, 0, 64 * sizeof(double), 1);  // 512 is the number of bytes to send, check request from client and send data
 			}
 			
 

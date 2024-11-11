@@ -4,8 +4,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Quantum Measurement UI" Height="800" Width="1000">
     <Grid>
+        <!-- Define row definitions -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <!-- Main content (TabControl) -->
+            <RowDefinition Height="200" />
+            <!-- Shared message box -->
+        </Grid.RowDefinitions>
+
         <!-- TabControl for multiple pages -->
-        <TabControl>
+        <TabControl Grid.Row="0">
             <!-- Calibration Page -->
             <TabItem Header="Calibration">
                 <Grid>
@@ -34,7 +42,6 @@
 
                     <!-- Left Controllers divided into three sections -->
                     <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Vertical" Margin="10,10,10,10" Grid.ColumnSpan="4">
-
                         <!-- Manual Motion Control -->
                         <GroupBox Header="Manual Motion Control" Margin="0,0,0,10">
                             <StackPanel>
@@ -61,7 +68,6 @@
                                 <!-- Current Position -->
                                 <TextBlock Text="Current Position:" />
                                 <TextBox Name="CurrentPosition" Width="100" IsReadOnly="True" />
-
                             </StackPanel>
                         </GroupBox>
 
@@ -114,7 +120,6 @@
                             </StackPanel>
                         </GroupBox>
 
-
                         <!-- Pause and Resume Buttons -->
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <Button Name="PauseButton"
@@ -153,8 +158,7 @@
                                 <lvc:Axis Title="Sample Index"></lvc:Axis>
                             </lvc:CartesianChart.AxisX>
                             <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Signal Amplitude (mV)"
-                                          MinValue="-240" MaxValue="240"></lvc:Axis>
+                                <lvc:Axis Title="Signal Amplitude (mV)"></lvc:Axis>
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
 
@@ -197,8 +201,103 @@
                     </Grid>
                 </Grid>
             </TabItem>
-            <!-- Additional tabs can be added here -->
 
+            <!-- Autobalance Page -->
+            <TabItem Header="Autobalance" Margin="-2,-3,-2,1">
+                <Grid>
+                    <!-- Define columns -->
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="23" />
+                        <ColumnDefinition Width="177"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Define rows -->
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Left Control Panel -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="10,10,10,10" Grid.ColumnSpan="2">
+                        <!-- Autobalance Control Panel -->
+                        <GroupBox Header="Autobalance Control">
+                            <StackPanel>
+                                <!-- Threshold Input -->
+                                <TextBlock Text="Threshold:" Margin="0,10,0,0"/>
+                                <TextBox Name="ThresholdInput" Width="100" Text="0" />
+                                <TextBlock Text="Number of Segments:" Margin="0,10,0,0"/>
+                                <TextBox Name="NumSegments" Width="100" Text="4"/>
+
+                                <!-- Start Autobalance Button -->
+                                <Button Content="Start" Width="150" Click="StartAutobalanceButton_Click" Margin="0,5,0,5"/>
+                                <Button Content="Terminate" Width="150" Click="TerminateAutobalanceButton_Click" Margin="0,5"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Additional controls if necessary -->
+                    </StackPanel>
+
+                    <!-- Right Side Charts -->
+                    <Grid Grid.Row="1" Grid.Column="3">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- SignalChartAutobalance -->
+                        <lvc:CartesianChart Name="SignalChartAutobalance"
+                                            LegendLocation="Bottom"
+                                            Grid.Row="0" Margin="10">
+                            <lvc:CartesianChart.AxisX>
+                                <lvc:Axis Title="Sample Index"></lvc:Axis>
+                            </lvc:CartesianChart.AxisX>
+                            <lvc:CartesianChart.AxisY>
+                                <lvc:Axis Title="Signal Amplitude (mV)"></lvc:Axis>
+                            </lvc:CartesianChart.AxisY>
+                        </lvc:CartesianChart>
+
+                        <!-- MotorPositionChart -->
+                        <lvc:CartesianChart Name="MotorPositionChart"
+                                            Grid.Row="1" Margin="10">
+                            <lvc:CartesianChart.AxisX>
+                                <lvc:Axis Title="Steps"></lvc:Axis>
+                            </lvc:CartesianChart.AxisX>
+                            <lvc:CartesianChart.AxisY>
+                                <lvc:Axis Title="Motor Position"></lvc:Axis>
+                            </lvc:CartesianChart.AxisY>
+                        </lvc:CartesianChart>
+
+                        <!-- FlatnessChart -->
+                        <lvc:CartesianChart Name="FlatnessChart"
+                                            Grid.Row="2" Margin="10">
+                            <lvc:CartesianChart.AxisX>
+                                <lvc:Axis Title="Steps"></lvc:Axis>
+                            </lvc:CartesianChart.AxisX>
+                            <lvc:CartesianChart.AxisY>
+                                <lvc:Axis Title="Flatness Metric"></lvc:Axis>
+                            </lvc:CartesianChart.AxisY>
+                        </lvc:CartesianChart>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- Additional tabs can be added here -->
         </TabControl>
+
+        <!-- Shared Message Box at the bottom -->
+        <GroupBox Header="Messages" Grid.Row="1" Margin="10">
+            <Grid>
+                <TextBox Name="SharedMessageLog"
+                         IsReadOnly="True"
+                         VerticalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         FontFamily="Consolas"
+                         FontSize="12" />
+            </Grid>
+        </GroupBox>
     </Grid>
 </Window>

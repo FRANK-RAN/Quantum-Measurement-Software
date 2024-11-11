@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
-using System.Diagnostics;
 using System.Windows.Controls;
 
 namespace Quantum_measurement_UI
@@ -16,9 +15,9 @@ namespace Quantum_measurement_UI
     public partial class MainWindow : Window
     {
         private const string PipeName = "DataPipe";
-        private const string CorrPipeName = "CorrMatrixPipe";
+       
         private const int DataPoints = 100;
-        private const double UpdateInterval = 50; // milliseconds
+        private const double UpdateInterval = 200; // milliseconds
 
         private short[] dataBuffer = new short[DataPoints];
         private double[] corrMatrixBuffer = new double[64];
@@ -50,6 +49,14 @@ namespace Quantum_measurement_UI
         private int selectedRow = 0;
         private int selectedColumn = 0;
 
+        // For Autobalance Charts
+        public SeriesCollection SignalSeriesCollectionAutobalance { get; set; }
+        public SeriesCollection MotorPositionSeriesCollection { get; set; }
+        public SeriesCollection MetricSeriesCollection { get; set; }
+
+        // Instance of Autobalancer
+        private Autobalancer autobalancer;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -67,7 +74,7 @@ namespace Quantum_measurement_UI
                     Values = ChannelAValues,
                     PointGeometry = null,
                     StrokeThickness = 2,
-                    Fill = Brushes.Transparent // No shadow under the curve
+                    Fill = Brushes.Transparent
                 },
                 new LineSeries
                 {
@@ -75,9 +82,10 @@ namespace Quantum_measurement_UI
                     Values = ChannelBValues,
                     PointGeometry = null,
                     StrokeThickness = 2,
-                    Fill = Brushes.Transparent // No shadow under the curve
+                    Fill = Brushes.Transparent
                 }
             };
+
 
             SignalChart.Series = SeriesCollection;
 
@@ -86,6 +94,23 @@ namespace Quantum_measurement_UI
 
             // Initialize MotorController instance
             motorController = new MotorController();
+
+            // Initialize Autobalancer
+            autobalancer = new Autobalancer(
+                motorController,
+                () =>
+                {
+                    lock (dataBuffer)
+                    {
+                        return (short[])dataBuffer.Clone();
+                    }
+                },
+                Dispatcher,
+                this // Pass the reference to MainWindow
+            );
+
+            // Initialize Autobalance Charts
+            InitializeAutobalanceCharts();
 
             // Initialize heatmap values (8x8 grid)
             heatValues = new ChartValues<HeatPoint>();
@@ -109,6 +134,16 @@ namespace Quantum_measurement_UI
 
             StartDataUpdates();
             StartMotorPositionUpdates(); // Start updating motor positions automatically
+        }
+
+        // Method to append messages to the shared message log
+        public void AppendMessage(string message)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                SharedMessageLog.AppendText($"{DateTime.Now:HH:mm:ss}: {message}\n");
+                SharedMessageLog.ScrollToEnd();
+            });
         }
 
         // Initialize the signal chart data with zeros
@@ -143,11 +178,9 @@ namespace Quantum_measurement_UI
         {
             pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
             pipeClient.Connect();
-            Console.WriteLine("Data Pipe Connected to server.");
+            AppendMessage("Data Pipe Connected to server.");
 
-            corrPipeClient = new NamedPipeClientStream(".", CorrPipeName, PipeDirection.InOut);
-            corrPipeClient.Connect();
-            Console.WriteLine("Correlation Matrix Connected to server.");
+            
         }
 
         // Start the task to update data periodically
@@ -198,7 +231,7 @@ namespace Quantum_measurement_UI
             }
             catch (Exception ex)
             {
-                Dispatcher.Invoke(() => MessageBox.Show($"Error updating motor position: {ex.Message}"));
+                Dispatcher.Invoke(() => AppendMessage($"Error updating motor position: {ex.Message}"));
             }
         }
 
@@ -235,7 +268,7 @@ namespace Quantum_measurement_UI
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception: {ex.Message}");
+                AppendMessage($"Exception: {ex.Message}");
             }
         }
 
@@ -247,14 +280,9 @@ namespace Quantum_measurement_UI
                 // Send a request to the server
                 byte[] request = BitConverter.GetBytes((short)1);
 
-                // Check if two pipes are connected
-                if (pipeClient.IsConnected && corrPipeClient.IsConnected)
-                {
-                    Console.WriteLine("Two pipes are connected.");
-                }
-
+              
                 await pipeClient.WriteAsync(request, 0, request.Length);
-                Console.WriteLine("Request sent to server.");
+                
 
                 // Receive data from the server
                 byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
@@ -267,18 +295,18 @@ namespace Quantum_measurement_UI
                 {
                     Buffer.BlockCopy(dataBufferBytes, 0, dataBuffer, 0, dataBufferBytes.Length);
                     Buffer.BlockCopy(corrBufferBytes, 0, corrMatrixBuffer, 0, corrBufferBytes.Length);
-                    Console.WriteLine("Data is received.");
+                   
                     return true; // Data received successfully
                 }
                 else
                 {
-                    Console.WriteLine("Error: Incomplete data received.");
+                    AppendMessage("Error: Incomplete data received.");
                     return false; // Data reception failed
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Communication error: {ex.Message}");
+                AppendMessage($"Communication error: {ex.Message}");
                 return false; // Communication failed
             }
         }
@@ -300,8 +328,8 @@ namespace Quantum_measurement_UI
 
             for (int i = 0; i < dataPointCount; i++)
             {
-                ChannelAValues[i] = dataBuffer[i * 2] / 32768.0 * 10000;
-                ChannelBValues[i] = dataBuffer[i * 2 + 1] / 32768.0 * 10000;
+                ChannelAValues[i] = dataBuffer[i * 2] / 32768.0 * 240;
+                ChannelBValues[i] = dataBuffer[i * 2 + 1] / 32768.0 * 240;
             }
         }
 
@@ -346,33 +374,21 @@ namespace Quantum_measurement_UI
         private void TerminateButton_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
-            Console.WriteLine("Application terminated.");
+            AppendMessage("Application terminated.");
         }
 
         // Event handler for the Pause button click
         private void PauseButton_Click(object sender, RoutedEventArgs e)
         {
             isPaused = true;
-            Console.WriteLine("Visualization paused.");
+            AppendMessage("Visualization paused.");
         }
 
         // Event handler for the Resume button click
         private void ResumeButton_Click(object sender, RoutedEventArgs e)
         {
             isPaused = false;
-            Console.WriteLine("Visualization resumed.");
-        }
-
-        // Clean up resources when the window is closed
-        protected override void OnClosed(EventArgs e)
-        {
-            cancellationTokenSource.Cancel();
-            motorPositionCancellationTokenSource?.Cancel();
-            pipeClient?.Dispose(); // Clean up the named pipe client
-            corrPipeClient?.Dispose(); // Clean up the named pipe client
-            motorController.Shutdown(); // Properly shut down the motor controller when closing
-            StopContinuousMotion(); // Stop any ongoing motion
-            base.OnClosed(e);
+            AppendMessage("Visualization resumed.");
         }
 
         // Event handler for Move Relative button click
@@ -392,7 +408,7 @@ namespace Quantum_measurement_UI
 
                 if (!moveStatus)
                 {
-                    MessageBox.Show("Failed to move the motor.");
+                    AppendMessage("Failed to move the motor.");
                     return;
                 }
 
@@ -408,13 +424,13 @@ namespace Quantum_measurement_UI
                     await Task.Delay(50);
                 }
 
-                MessageBox.Show($"Moved motor {motorNumber} by {relativeSteps} steps.");
+                AppendMessage($"Moved motor {motorNumber} by {relativeSteps} steps.");
 
                 // Current position will be updated automatically
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}");
+                AppendMessage($"Error: {ex.Message}");
             }
         }
 
@@ -435,7 +451,7 @@ namespace Quantum_measurement_UI
 
                 if (!moveStatus)
                 {
-                    MessageBox.Show("Failed to move the motor.");
+                    AppendMessage("Failed to move the motor.");
                     return;
                 }
 
@@ -451,13 +467,13 @@ namespace Quantum_measurement_UI
                     await Task.Delay(50);
                 }
 
-                MessageBox.Show($"Moved motor {motorNumber} to position {targetPosition}.");
+                AppendMessage($"Moved motor {motorNumber} to position {targetPosition}.");
 
                 // Current position will be updated automatically
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}");
+                AppendMessage($"Error: {ex.Message}");
             }
         }
 
@@ -477,18 +493,18 @@ namespace Quantum_measurement_UI
 
                 if (!status)
                 {
-                    MessageBox.Show($"Failed to set zero position for motor {motorNumber}.");
+                    AppendMessage($"Failed to set zero position for motor {motorNumber}.");
                 }
                 else
                 {
-                    MessageBox.Show($"Set motor {motorNumber} position to zero.");
+                    AppendMessage($"Set motor {motorNumber} position to zero.");
                 }
 
                 // Current position will be updated automatically
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}");
+                AppendMessage($"Error: {ex.Message}");
             }
         }
 
@@ -508,7 +524,7 @@ namespace Quantum_measurement_UI
 
                 if (row < 0 || row > 7 || col < 0 || col > 7)
                 {
-                    MessageBox.Show("Row and Column values must be between 0 and 7.");
+                    AppendMessage("Row and Column values must be between 0 and 7.");
                     return;
                 }
 
@@ -526,7 +542,7 @@ namespace Quantum_measurement_UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}");
+                AppendMessage($"Error: {ex.Message}");
             }
         }
 
@@ -543,11 +559,11 @@ namespace Quantum_measurement_UI
 
                 // Start the automatic continuous motion
                 StartAutomaticMotion(motorNumber, timePerMoveMs, stepsPerMove, totalNumberOfMoves);
-                MessageBox.Show($"Started automatic motion for motor {motorNumber}.");
+                AppendMessage($"Started automatic motion for motor {motorNumber}.");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}");
+                AppendMessage($"Error: {ex.Message}");
             }
         }
 
@@ -556,7 +572,7 @@ namespace Quantum_measurement_UI
         {
             // Cancel the motion
             StopContinuousMotion();
-            MessageBox.Show("Automatic motion stopped.");
+            AppendMessage("Automatic motion stopped.");
         }
 
         // Start the automatic continuous motion task
@@ -602,7 +618,7 @@ namespace Quantum_measurement_UI
                         {
                             Dispatcher.Invoke(() =>
                             {
-                                MessageBox.Show("Failed to move the motor.");
+                                AppendMessage("Failed to move the motor.");
                             });
                             break;
                         }
@@ -640,7 +656,7 @@ namespace Quantum_measurement_UI
                 }
                 catch (Exception ex)
                 {
-                    Dispatcher.Invoke(() => MessageBox.Show($"Error during motion: {ex.Message}"));
+                    Dispatcher.Invoke(() => AppendMessage($"Error during motion: {ex.Message}"));
                 }
             });
         }
@@ -653,6 +669,112 @@ namespace Quantum_measurement_UI
                 motionCancellationTokenSource.Cancel();
                 motionCancellationTokenSource = null;
             }
+        }
+
+        private void InitializeAutobalanceCharts()
+        {
+            // Initialize SignalSeriesCollectionAutobalance with two series for channels A and B
+            SignalSeriesCollectionAutobalance = new SeriesCollection
+            {
+                new LineSeries
+                {
+                    Title = "Channel A Signal",
+                    Values = ChannelAValues,
+                    PointGeometry = null,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
+                },
+                new LineSeries
+                {
+                    Title = "Channel B Signal",
+                    Values = ChannelBValues,
+                    PointGeometry = null,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
+                }
+            };
+            SignalChartAutobalance.Series = SignalSeriesCollectionAutobalance;
+
+            MotorPositionSeriesCollection = new SeriesCollection
+            {
+                new LineSeries
+                {
+                    Title = "Motor 1 Position",
+                    Values = autobalancer.MotorPositionValues1,
+                    PointGeometry = null,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
+                },
+                new LineSeries
+                {
+                    Title = "Motor 2 Position",
+                    Values = autobalancer.MotorPositionValues2,
+                    PointGeometry = null,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
+                }
+            };
+            MotorPositionChart.Series = MotorPositionSeriesCollection;
+
+            // Initialize MetricSeriesCollection with two series for channels A and B
+            MetricSeriesCollection = new SeriesCollection
+            {
+                new LineSeries
+                {
+                    Title = "Channel A Flatness Metric",
+                    Values = autobalancer.MetricValuesA,
+                    PointGeometry = null,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
+                },
+                new LineSeries
+                {
+                    Title = "Channel B Flatness Metric",
+                    Values = autobalancer.MetricValuesB,
+                    PointGeometry = null,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
+                }
+            };
+            FlatnessChart.Series = MetricSeriesCollection;
+        }
+
+        // Event handler for Start Autobalance button click
+        private void StartAutobalanceButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                double threshold = double.Parse(ThresholdInput.Text);
+                int numberOfSegments = int.Parse(NumSegments.Text);
+
+                autobalancer.Start(threshold, numberOfSegments);
+
+                AppendMessage("Autobalance started.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error: {ex.Message}");
+            }
+        }
+
+        // Event handler for Terminate Autobalance button click
+        private void TerminateAutobalanceButton_Click(object sender, RoutedEventArgs e)
+        {
+            autobalancer.Stop();
+            AppendMessage("Autobalance terminated.");
+        }
+
+        // Clean up resources when the window is closed
+        protected override void OnClosed(EventArgs e)
+        {
+            cancellationTokenSource.Cancel();
+            motorPositionCancellationTokenSource?.Cancel();
+            autobalancer?.Stop(); // Stop autobalance if running
+            pipeClient?.Dispose(); // Clean up the named pipe client
+            corrPipeClient?.Dispose(); // Clean up the named pipe client
+            motorController.Shutdown(); // Properly shut down the motor controller when closing
+            StopContinuousMotion(); // Stop any ongoing motion
+            base.OnClosed(e);
         }
     }
 }
