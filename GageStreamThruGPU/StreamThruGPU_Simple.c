@@ -57,7 +57,7 @@
 #define RAW_SIG_PIPE_NAME "\\\\.\\pipe\\DataPipe"
 
 
-
+HANDLE raw_signal_hPipe = NULL;					// Handle to the pipe for all communication between software process and gagestreamthruGPU process
 
 // User configuration variables
 typedef struct
@@ -248,6 +248,11 @@ int _tmain()
 	clock_t pre_start_time, pre_current_time;
 	double pre_time;
 
+	BOOL						useIPC = FALSE;
+
+	
+
+
 	pre_start_time = clock();
 
 	// Initializes the CompuScope boards found in the system. If the
@@ -420,6 +425,13 @@ int _tmain()
 		}
 	}
 
+
+	// create pipe for communication between software process and gagestreamthruGPU process
+	useIPC = g_ExpConfig.useIPC;	// 1 for using IPC, 0 for not using IPC
+	if (useIPC) {
+		raw_signal_hPipe = createAndConnectPipe(RAW_SIG_PIPE_NAME, 0);
+	}
+
 	// Streaming Configuration.
 	// Validate if the board supports hardware streaming. If  it is not supported, 
 	// we'll exit gracefully.
@@ -517,6 +529,19 @@ int _tmain()
 		}
 	}
 
+	int start_command = 0;
+	// check the pipe for any request from the client
+	while (1) {
+
+		// Check if there is any request from the client
+		start_command = handleClientRequests(raw_signal_hPipe, NULL, NULL, 0, 0, 0);
+
+		if (start_command == 2)
+			break;
+
+	}
+	
+	printf("Start command received\n");
 	// Start the streaming data acquisition
 	printf("\nStart streaming. Press ESC to abort\n\n");
 	i32Status = CsDo(g_hSystem, ACTION_START);
@@ -1103,15 +1128,6 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 	int					corrMatrixSize; 													// Size of the correlation matrix
 	int					segmentSize;														// Size of one segment in the input data 
 
-	HANDLE raw_signal_hPipe = NULL;
-	HANDLE corr_matrix_hPipe = NULL;
-
-	if (useIPC) {
-		raw_signal_hPipe = createAndConnectPipe(RAW_SIG_PIPE_NAME, 0);
-	}
-	
-
-
 
 
 	LARGE_INTEGER temp, start_time = { 0 }, end_time = { 0 };
@@ -1572,6 +1588,10 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 
 			if (NULL != pWorkBuffer && useIPC) {
 				int result = handleClientRequests(raw_signal_hPipe, pWorkBuffer, h_odata, 0, 200, 0);  // 200 is the number of bytes to send, check request from client and send data
+				if (result == 4) {
+					SetEvent(g_hStreamError);
+					bDone = TRUE;
+				}
 			}
 			
 

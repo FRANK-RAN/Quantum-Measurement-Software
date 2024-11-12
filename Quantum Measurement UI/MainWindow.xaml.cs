@@ -31,7 +31,7 @@ namespace Quantum_measurement_UI
 
         // Fields for managing automatic continuous motion
         private CancellationTokenSource motionCancellationTokenSource; // For cancelling motion
-        private bool isPaused = false; // Flag to indicate if motion is paused
+        private bool isPaused = true; // Flag for pausing/resuming motion
         private object pauseLock = new object(); // Lock object for pause/resume synchronization
 
         // Fields for updating motor positions automatically
@@ -278,7 +278,7 @@ namespace Quantum_measurement_UI
             try
             {
                 // Send a request to the server
-                byte[] request = BitConverter.GetBytes((short)1);
+                byte[] request = BitConverter.GetBytes((short)0);
 
               
                 await pipeClient.WriteAsync(request, 0, request.Length);
@@ -370,11 +370,34 @@ namespace Quantum_measurement_UI
             }
         }
 
+        // Event handler for the Start button click
+        private void StartButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Send a request to the server
+            byte[] request = BitConverter.GetBytes((short)1);
+            pipeClient.Write(request, 0, request.Length);      // Send the request to start data acquisition
+            isPaused = false;                                       // data updates can start
+            AppendMessage("Data Acquisition started.");
+        }
+
+
         // Event handler for the Terminate button click
+       // private void TerminateButton_Click(object sender, RoutedEventArgs e)
+       // {
+       //     Application.Current.Shutdown();
+       //     AppendMessage("Application terminated.");
+       // }
+        // Event handler for the Terminate button click
+
+
         private void TerminateButton_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown();
-            AppendMessage("Application terminated.");
+            // Send a request to the server
+            isPaused = true; // Pause data updates
+            byte[] request = BitConverter.GetBytes((short)2);   // Send the request to terminate data acquisition
+            pipeClient.Write(request, 0, request.Length);      // Send the request to start data acquisition
+            AppendMessage("Data Acquisition terminated.");
+           
         }
 
         // Event handler for the Pause button click

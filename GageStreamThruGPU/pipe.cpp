@@ -45,12 +45,11 @@ extern "C" bool CheckForRequest(HANDLE hPipe)
 	return false; // No data available
 }
 
-
+// choice = 0: Start the data acquisition
 extern "C" int handleClientRequests(HANDLE hPipe, short* data, double* corrMatrix, int segmentIndex, DWORD bytesToSend, int choice)
 {
 	if (!CheckForRequest(hPipe))
 	{
-		//std::cerr << "No request.\n";
 		return 0;  // No data to process
 	}
 
@@ -64,30 +63,48 @@ extern "C" int handleClientRequests(HANDLE hPipe, short* data, double* corrMatri
 		return 1;  // Error reading the request
 	}
 
-	std::cout << "Received request from client, sending data...\n";
-
-	// Send a specific number of bytes of a specific segment of `data` or corrMatrix to the client
-	DWORD bytesWritten1;
-	DWORD bytesWritten2;
-	
-	// Calculate the starting position for the segment to send
-	short* segmentStart = data + (segmentIndex * (bytesToSend / sizeof(short))); // Calculate the starting point
-	success = WriteFile(hPipe, segmentStart, 200, &bytesWritten1, NULL);
-	
-	
-	// Calculate the starting position for the segment to send
-	
-	success = WriteFile(hPipe, corrMatrix, 512, &bytesWritten2, NULL);
-
-	
-
-	
-	if (!success || bytesWritten1 != 200 || bytesWritten2 != 512)
-	{
-		std::cerr << "Failed to send data to client.\n";
-		return 1;  // Error sending the data
+	if (request == 1) {
+		return 2;			// The client requested to start the data acquisition
 	}
 
-	//std::cout << "Sent data to client.\n";
-	return 2;  // Successfully processed the request and sent data
+
+	else if (request == 0) {
+		
+
+		std::cout << "Received request from client, sending data...\n";
+
+		// Send a specific number of bytes of a specific segment of `data` or corrMatrix to the client
+		DWORD bytesWritten1;
+		DWORD bytesWritten2;
+
+		// Calculate the starting position for the segment to send
+		short* segmentStart = data + (segmentIndex * (bytesToSend / sizeof(short))); // Calculate the starting point
+		success = WriteFile(hPipe, segmentStart, 200, &bytesWritten1, NULL);
+
+
+		// Calculate the starting position for the segment to send
+
+		success = WriteFile(hPipe, corrMatrix, 512, &bytesWritten2, NULL);
+
+
+
+
+		if (!success || bytesWritten1 != 200 || bytesWritten2 != 512)
+		{
+			std::cerr << "Failed to send data to client.\n";
+			return 1;  // Error sending the data
+		}
+
+		//std::cout << "Sent data to client.\n";
+		return 3;  // Successfully processed the request and sent data
+	}
+
+	else if (request == 2) {
+		return 4;			// The client requested to stop the data acquisition
+	}
+
+	else {
+		std::cerr << "Invalid request received from client.\n";
+		return 1;  // Invalid request
+	}
 }
