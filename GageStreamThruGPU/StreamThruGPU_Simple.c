@@ -374,58 +374,6 @@ int _tmain()
 	}
 
 
-	// if we're not doing analysis then we're not using the GPU
-	if (!g_GpuConfig.bDoAnalysis)
-	{
-		g_GpuConfig.bUseGpu = FALSE;
-	}
-
-	// bUseGpu being true implies that we're doing analysis
-	if (g_GpuConfig.bUseGpu)
-	{
-		// Initialize cuda device.  If i32MaxBlocks or i32MaxThreadsPerBlock were -1 we set them to the maximum
-		cudaStatus = InitializeCudaDevice(i32CudaDevice, &i32MaxBlocks, &i32MaxThreadsPerBlock, &bPinGenericMemory);
-		if (cudaStatus != cudaSuccess)
-		{
-			fprintf(stderr, "\ncuda error %d\n", cudaStatus);
-			CsFreeSystem(g_hSystem);
-			return (-1);
-		}
-		// our streaming uses a buffer allocated by our kernel driver, so we need to be able to map it
-		// onto the GPU using cudaHostRegister and cudaGetDevicePointer
-		if (!bPinGenericMemory)
-		{
-			fprintf(stderr, "\nPinned generic memory is needed for streaming but is not available.\nExiting program\n");
-			CsFreeSystem(g_hSystem);
-			return (-1);
-		}
-
-		if (g_GpuConfig.i32GpuBlocks > i32MaxBlocks || -1 == g_GpuConfig.i32GpuBlocks)
-		{
-			fprintf(stderr, "\nBlock count is too big, changed from %d blocks to %d blocks\n", g_GpuConfig.i32GpuBlocks, i32MaxBlocks);
-			g_GpuConfig.i32GpuBlocks = i32MaxBlocks;
-		}
-		if (-1 == g_GpuConfig.i32GpuBlocks) // -1 means use the maximum
-		{
-			g_GpuConfig.i32GpuBlocks = i32MaxBlocks;
-		}
-		if (g_GpuConfig.i32GpuThreads > i32MaxThreadsPerBlock)
-		{
-			fprintf(stderr, "\nThreads per block is too big, changed from %d threads to %d threads\n", g_GpuConfig.i32GpuThreads, i32MaxThreadsPerBlock);
-			g_GpuConfig.i32GpuThreads = i32MaxThreadsPerBlock;
-		}
-		if (-1 == g_GpuConfig.i32GpuThreads) // -1 means use the maximum
-		{
-			g_GpuConfig.i32GpuThreads = i32MaxThreadsPerBlock;
-		}
-		if (0 == g_GpuConfig.i32GpuThreads)
-		{
-			_ftprintf(stderr, "\nGPU thread count cannot be 0, changed to 1\n");
-			g_GpuConfig.i32GpuThreads = 1;
-		}
-	}
-
-
 	// create pipe for communication between software process and gagestreamthruGPU process
 	useIPC = g_ExpConfig.useIPC;	// 1 for using IPC, 0 for not using IPC
 	if (useIPC) {
@@ -1762,8 +1710,6 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 		}
 		
 		
-
-
 
 		if (bStreamCompletedSuccess)
 		{

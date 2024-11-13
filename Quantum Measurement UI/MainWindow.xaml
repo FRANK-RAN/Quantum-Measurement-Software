@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Quantum Measurement UI" Height="1000" Width="1000">
+        Title="Quantum Measurement UI" Height="800" Width="1000">
     <Grid>
         <!-- Define row definitions -->
         <Grid.RowDefinitions>
@@ -71,27 +71,7 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- Pixel Tracking -->
-                        <GroupBox Header="Pixel Tracking" Margin="0,0,0,10">
-                            <StackPanel>
-                                <!-- Pixel Selection Section -->
-                                <TextBlock Text="Specify Pixel (Matrix Coordinate):" FontWeight="Bold" Margin="0,5,0,5" />
 
-                                <TextBlock Text="Row (0-7):" Margin="0,5,0,0" />
-                                <TextBox Name="RowInput" Width="100" Text="0" />
-
-                                <TextBlock Text="Column (0-7):" Margin="0,5,0,0" />
-                                <TextBox Name="ColumnInput" Width="100" Text="0" />
-
-                                <Button Content="Confirm Pixel Selection"
-                                        Width="150"
-                                        Click="ConfirmPixelSelection_Click"
-                                        Margin="0,10,0,10"/>
-
-                                <TextBlock Text="Selected Pixel Value:" />
-                                <TextBox Name="SelectedPixelValue" Width="100" IsReadOnly="True" />
-                            </StackPanel>
-                        </GroupBox>
 
                         <!-- Automatic Continuous Motion Control -->
                         <GroupBox Header="Automatic Continuous Motion Control">
@@ -117,6 +97,28 @@
                                         Width="150"
                                         Click="StopMotionButton_Click"
                                         Margin="0,5,0,5"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Pixel Tracking -->
+                        <GroupBox Header="Pixel Tracking" Margin="0,0,0,10">
+                            <StackPanel>
+                                <!-- Pixel Selection Section -->
+                                <TextBlock Text="Specify Pixel (Matrix Coordinate):" FontWeight="Bold" Margin="0,5,0,5" />
+
+                                <TextBlock Text="Row (0-7):" Margin="0,5,0,0" />
+                                <TextBox Name="RowInput" Width="100" Text="0" />
+
+                                <TextBlock Text="Column (0-7):" Margin="0,5,0,0" />
+                                <TextBox Name="ColumnInput" Width="100" Text="0" />
+
+                                <Button Content="Confirm Pixel Selection"
+                                        Width="150"
+                                        Click="ConfirmPixelSelection_Click"
+                                        Margin="0,10,0,10"/>
+
+                                <TextBlock Text="Selected Pixel Value:" />
+                                <TextBox Name="SelectedPixelValue" Width="100" IsReadOnly="True" />
                             </StackPanel>
                         </GroupBox>
 

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
+using System.IO;
 
 namespace Quantum_measurement_UI
 {
@@ -22,7 +23,7 @@ namespace Quantum_measurement_UI
         private short[] dataBuffer = new short[DataPoints];
         private double[] corrMatrixBuffer = new double[64];
         private NamedPipeClientStream pipeClient;
-        private NamedPipeClientStream corrPipeClient;
+        
         private Task updateTask;
         private CancellationTokenSource cancellationTokenSource;
 
@@ -56,6 +57,11 @@ namespace Quantum_measurement_UI
 
         // Instance of Autobalancer
         private Autobalancer autobalancer;
+
+        // For experiement log
+        private string experimentLogFilePath;
+        private StreamWriter experimentLogWriter;
+
 
         public MainWindow()
         {
@@ -136,7 +142,58 @@ namespace Quantum_measurement_UI
             StartMotorPositionUpdates(); // Start updating motor positions automatically
         }
 
-        // Method to append messages to the shared message log
+        // Initialize the experiment log file and copy the streaming configuration from StreamThruGPUY_Simple.ini
+        private void InitializeExperimentLog()
+        {
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string baseDirectory = @"C:\Users\jr151\source\repos\Quantum Measurement UI\results";
+            string resultDirectory = Path.Combine(baseDirectory, timestamp);
+
+            // Ensure the timestamped directory exists
+            Directory.CreateDirectory(resultDirectory);
+
+            // Set the log file path within the timestamped directory
+            experimentLogFilePath = Path.Combine(resultDirectory, "exp.log");
+            experimentLogWriter = new StreamWriter(experimentLogFilePath);
+
+            // Log the location of the experiment log
+            experimentLogWriter.WriteLine($"Experiment Log: {experimentLogFilePath}\n");
+
+            // Use the specified path for the ini file
+            string configFilePath = @"C:\Users\jr151\source\repos\Quantum Measurement UI\GageStreamThruGPU\StreamThruGPU.ini";
+
+            experimentLogWriter.WriteLine("The streaming configuration is as follows:\n");
+
+            // Copy the configuration from the ini file to the log file
+            if (File.Exists(configFilePath))
+            {
+                foreach (var line in File.ReadLines(configFilePath))
+                {
+                    experimentLogWriter.WriteLine(line);
+                }
+            }
+
+            experimentLogWriter.WriteLine("\n--- Experiment Start ---\n");
+            experimentLogWriter.Flush();
+        }
+
+
+
+
+        // Method to log events to the experiment log file with a timestamp
+        public void LogExperimentEvent(string message)
+        {
+            if (experimentLogWriter != null)
+            {
+                string logEntry = $"{DateTime.Now:HH:mm:ss}: {message}";
+                experimentLogWriter.WriteLine(logEntry);
+                experimentLogWriter.Flush(); // Ensure immediate write to the file
+            }
+        }
+
+
+
+        // Method to append messages to the shared message log with a timestamp
         public void AppendMessage(string message)
         {
             Dispatcher.Invoke(() =>
@@ -179,8 +236,6 @@ namespace Quantum_measurement_UI
             pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
             pipeClient.Connect();
             AppendMessage("Data Pipe Connected to server.");
-
-            
         }
 
         // Start the task to update data periodically
@@ -373,31 +428,50 @@ namespace Quantum_measurement_UI
         // Event handler for the Start button click
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            // Send a request to the server
+            // initialize the experiment log
+            InitializeExperimentLog();
+
+            // Send a request to the server to start data acquisition
             byte[] request = BitConverter.GetBytes((short)1);
             pipeClient.Write(request, 0, request.Length);      // Send the request to start data acquisition
             isPaused = false;                                       // data updates can start
             AppendMessage("Data Acquisition started.");
+            LogExperimentEvent("Data Acquisition started.");
         }
-
-
-        // Event handler for the Terminate button click
-       // private void TerminateButton_Click(object sender, RoutedEventArgs e)
-       // {
-       //     Application.Current.Shutdown();
-       //     AppendMessage("Application terminated.");
-       // }
-        // Event handler for the Terminate button click
 
 
         private void TerminateButton_Click(object sender, RoutedEventArgs e)
         {
+
+            // clear all other works running and close the pipe
+            cancellationTokenSource.Cancel();               // stop the data updates
+            motorPositionCancellationTokenSource?.Cancel();   // stop the motor position updates
+            autobalancer?.Stop(); // Stop autobalance if running
+            motorController.Shutdown(); // Properly shut down the motor controller when closing
+            StopContinuousMotion(); // Stop any ongoing motion
+
+
             // Send a request to the server
-            isPaused = true; // Pause data updates
+            
             byte[] request = BitConverter.GetBytes((short)2);   // Send the request to terminate data acquisition
             pipeClient.Write(request, 0, request.Length);      // Send the request to start data acquisition
-            AppendMessage("Data Acquisition terminated.");
-           
+
+            pipeClient?.Dispose(); // Clean up the named pipe client
+            AppendMessage("Experiment terminated.");
+            LogExperimentEvent("Experiment terminated.");
+
+
+
+            // Close the experiment log
+            if (experimentLogWriter != null)
+            {
+                experimentLogWriter.WriteLine("\n--- Experiment End ---\n");
+                experimentLogWriter.Flush();
+                experimentLogWriter.Close();
+                experimentLogWriter = null;
+            }
+
+
         }
 
         // Event handler for the Pause button click
@@ -447,7 +521,14 @@ namespace Quantum_measurement_UI
                     await Task.Delay(50);
                 }
 
-                AppendMessage($"Moved motor {motorNumber} by {relativeSteps} steps.");
+                int currentPosition = 0;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    motorController.GetCurrentPosition(motorNumber, out currentPosition);
+                });
+
+                AppendMessage($"Moved motor {motorNumber} by {relativeSteps} steps to position {currentPosition}.");
+                LogExperimentEvent($"Moved motor {motorNumber} by {relativeSteps} steps to position {currentPosition}.");
 
                 // Current position will be updated automatically
             }
@@ -490,7 +571,10 @@ namespace Quantum_measurement_UI
                     await Task.Delay(50);
                 }
 
+
+
                 AppendMessage($"Moved motor {motorNumber} to position {targetPosition}.");
+                LogExperimentEvent($"Moved motor {motorNumber} to position {targetPosition}.");
 
                 // Current position will be updated automatically
             }
@@ -521,6 +605,7 @@ namespace Quantum_measurement_UI
                 else
                 {
                     AppendMessage($"Set motor {motorNumber} position to zero.");
+                    LogExperimentEvent($"Set motor {motorNumber} position to zero.");
                 }
 
                 // Current position will be updated automatically
@@ -580,9 +665,13 @@ namespace Quantum_measurement_UI
 
                 int motorNumber = GetSelectedMotor();
 
+                int expectedposition = 0;
+                motorController.GetCurrentPosition(motorNumber, out expectedposition);
+                expectedposition += stepsPerMove * totalNumberOfMoves;
                 // Start the automatic continuous motion
                 StartAutomaticMotion(motorNumber, timePerMoveMs, stepsPerMove, totalNumberOfMoves);
-                AppendMessage($"Started automatic motion for motor {motorNumber}.");
+                AppendMessage($"Started automatic motion for motor {motorNumber} with {totalNumberOfMoves} moves to expected position {expectedposition}.");
+                LogExperimentEvent($"Started automatic motion for motor {motorNumber} with {totalNumberOfMoves} moves to expected position {expectedposition}.");
             }
             catch (Exception ex)
             {
@@ -591,12 +680,28 @@ namespace Quantum_measurement_UI
         }
 
         // Event handler for Stop Motion button click
-        private void StopMotionButton_Click(object sender, RoutedEventArgs e)
+        private async void StopMotionButton_Click(object sender, RoutedEventArgs e)
         {
             // Cancel the motion
             StopContinuousMotion();
+
+            // Wait asynchronously for the motion to stop (non-blocking)
+            await Task.Delay(1000);
+
+            int currentPosition1 = 0;
+            int currentPosition2 = 0;
+            motorController.GetCurrentPosition(1, out currentPosition1);
+            motorController.GetCurrentPosition(2, out currentPosition2);
+
+            // Append messages and log the event
             AppendMessage("Automatic motion stopped.");
+            AppendMessage($"Motor 1 current position: {currentPosition1}");
+            AppendMessage($"Motor 2 current position: {currentPosition2}");
+            LogExperimentEvent("Automatic motion stopped.");
+            LogExperimentEvent($"Motor 1 current position: {currentPosition1}");
+            LogExperimentEvent($"Motor 2 current position: {currentPosition2}");
         }
+
 
         // Start the automatic continuous motion task
         private void StartAutomaticMotion(int motorNumber, int timePerMoveMs, int stepsPerMove, int totalNumberOfMoves)
@@ -681,6 +786,9 @@ namespace Quantum_measurement_UI
                 {
                     Dispatcher.Invoke(() => AppendMessage($"Error during motion: {ex.Message}"));
                 }
+
+                
+                
             });
         }
 
@@ -770,9 +878,11 @@ namespace Quantum_measurement_UI
                 double threshold = double.Parse(ThresholdInput.Text);
                 int numberOfSegments = int.Parse(NumSegments.Text);
 
+                AppendMessage("Autobalance started.");
+                LogExperimentEvent("Autobalance started.");
                 autobalancer.Start(threshold, numberOfSegments);
 
-                AppendMessage("Autobalance started.");
+                
             }
             catch (Exception ex)
             {
@@ -784,17 +894,16 @@ namespace Quantum_measurement_UI
         private void TerminateAutobalanceButton_Click(object sender, RoutedEventArgs e)
         {
             autobalancer.Stop();
-            AppendMessage("Autobalance terminated.");
         }
 
         // Clean up resources when the window is closed
         protected override void OnClosed(EventArgs e)
         {
+
             cancellationTokenSource.Cancel();
             motorPositionCancellationTokenSource?.Cancel();
             autobalancer?.Stop(); // Stop autobalance if running
             pipeClient?.Dispose(); // Clean up the named pipe client
-            corrPipeClient?.Dispose(); // Clean up the named pipe client
             motorController.Shutdown(); // Properly shut down the motor controller when closing
             StopContinuousMotion(); // Stop any ongoing motion
             base.OnClosed(e);

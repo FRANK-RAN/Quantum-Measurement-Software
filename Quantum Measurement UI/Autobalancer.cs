@@ -56,8 +56,8 @@ namespace Quantum_measurement_UI
         {
             if (IsRunning)
             {
-                // *** Use AppendMessage instead of MessageBox.Show ***
-                mainWindow.AppendMessage("Autobalancer is already running."); 
+                this.mainWindow.AppendMessage("Autobalance is already running.");
+                this.mainWindow.LogExperimentEvent("Autobalance is already running.");
                 return; // Already running
             }
 
@@ -95,7 +95,8 @@ namespace Quantum_measurement_UI
             }
             IsRunning = false;
             // *** Optionally, log that autobalance was stopped ***
-            mainWindow.AppendMessage("Autobalance stopped."); 
+            mainWindow.AppendMessage("Autobalance stopped.");
+            mainWindow.LogExperimentEvent("Autobalance stopped.");
         }
 
         private async Task AutobalanceProcess(double threshold, int numsegments, CancellationToken cancellationToken)
@@ -113,10 +114,20 @@ namespace Quantum_measurement_UI
             // Initialize motor positions and directions
             motorController.GetCurrentPosition(1, out currentMotor1Position);
             motorController.GetCurrentPosition(2, out currentMotor2Position);
+
+            this.dispatcher.Invoke(() =>
+            {
+                // *** Use AppendMessage instead of MessageBox.Show ***
+                this.mainWindow.AppendMessage($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
+                this.mainWindow.LogExperimentEvent($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
+
+            }); 
+           
             int motor1Direction = 1; // Start by moving positive direction
             int motor2Direction = 1;
             int startIndex_A = 0; // Start index for data points being processed for metric calculation
             int startIndex_B = 0;
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 // Read data buffer
@@ -145,11 +156,13 @@ namespace Quantum_measurement_UI
                 if (motor1completed && motor2completed)
                 {
                     // Autobalance completed
-                    dispatcher.Invoke(() =>
+                    this.dispatcher.Invoke(() =>
                     {
                         // *** Use AppendMessage instead of MessageBox.Show ***
-                        mainWindow.AppendMessage("Autobalance completed."); 
+                        this.mainWindow.AppendMessage("Autobalance completed.");
+                        this.mainWindow.LogExperimentEvent("Autobalance completed.");
                     });
+                    
                     break;
                 }
 
@@ -186,7 +199,8 @@ namespace Quantum_measurement_UI
                             dispatcher.Invoke(() =>
                             {
                                 // *** Use AppendMessage instead of MessageBox.Show ***
-                                mainWindow.AppendMessage("Autobalance for motor 1 completed due to valley bottom."); 
+                                this.mainWindow.AppendMessage("Autobalance for motor 1 completed due to valley bottom."); 
+                                this.mainWindow.LogExperimentEvent("Autobalance for motor 1 completed due to valley bottom.");
                             });
                         }
                     }
@@ -222,10 +236,11 @@ namespace Quantum_measurement_UI
                         {
                             // Metric didn't decrease in either direction, consider motor2 completed
                             motor2completed = true;
-                            dispatcher.Invoke(() =>
+                            this.dispatcher.Invoke(() =>
                             {
                                 // *** Use AppendMessage instead of MessageBox.Show ***
-                               mainWindow.AppendMessage("Autobalance for motor 2 completed due to valley bottom."); 
+                               this.mainWindow.AppendMessage("Autobalance for motor 2 completed due to valley bottom."); 
+                               this.mainWindow.LogExperimentEvent("Autobalance for motor 2 completed due to valley bottom.");
                             });
                         }
                     }
@@ -408,7 +423,7 @@ namespace Quantum_measurement_UI
 
             await dispatcher.InvokeAsync(() =>
             {
-                moveStatus = motorController.MoveRelative(motorNumber, steps);
+                moveStatus = this.motorController.MoveRelative(motorNumber, steps);
             });
 
             if (!moveStatus)
@@ -426,14 +441,31 @@ namespace Quantum_measurement_UI
             bool isMotionDone = false;
             while (!isMotionDone)
             {
-                await dispatcher.InvokeAsync(() =>
+                await this.dispatcher.InvokeAsync(() =>
                 {
-                    motorController.CheckForErrors();
-                    motorController.IsMotionDone(motorNumber, out isMotionDone);
+                    this.motorController.CheckForErrors();
+                    this.motorController.IsMotionDone(motorNumber, out isMotionDone);
                 });
 
                 await Task.Delay(50, cancellationToken);
             }
+
+            // *** Log motor movement ***
+            this.dispatcher.Invoke(() =>
+            {
+                if (motorNumber == 1)
+                {
+                    this.mainWindow.AppendMessage($"Motor {motorNumber} moved {steps} steps to position {currentMotor1Position}");
+                    this.mainWindow.LogExperimentEvent($"Motor {motorNumber} moved {steps} steps to position {currentMotor1Position}");
+                }
+                else
+                {
+                    this.mainWindow.AppendMessage($"Motor {motorNumber} moved {steps} steps to position {currentMotor2Position}");
+                    this.mainWindow.LogExperimentEvent($"Motor {motorNumber} moved {steps} steps to position {currentMotor2Position}");
+                }
+            });
+
+
         }
     }
 }
