@@ -1,110 +1,157 @@
+/*
+ * File: NamedPipeServer.cpp
+ * Description: This file contains functions to create and manage a named pipe server in Windows.
+ *              The server waits for a client to connect, handles incoming requests, and sends
+ *              data segments or other responses based on the client's request.
+ *
+ * Functions:
+ * - createAndConnectPipe: Creates a named pipe and waits for a client to connect.
+ * - CheckForRequest: Checks if data is available from the client without blocking.
+ * - handleClientRequests: Handles requests from the client, including starting the experiment,
+ *                         sending data, and stopping the data acquisition.
+ *
+ * Usage:
+ * - Compile this file as part of your application that interacts with named pipes.
+ *
+ * Author: Frank Ran
+ * Created: 2024-11-13
+ 
+ 
+ * Notes:
+ * - Ensure the client application connects to the same named pipe for proper communication.
+ * - Customize the buffer size and request handling logic as needed.
+ */
+
 #include <stdio.h>
 #include <Windows.h>
 #include <stdlib.h>
 #include <iostream>
 
-
+/*
+ * Function: createAndConnectPipe
+ * Description: Creates a named pipe with read/write access and waits for a client to connect.
+ * Parameters:
+ *   - pipeName: The name of the pipe (const char*) used to identify the pipe.
+ *   - bufferSize: The size of the pipe's buffer in bytes (DWORD).
+ * Returns:
+ *   - HANDLE: A handle to the created pipe. Returns NULL if the pipe creation or connection fails.
+ * Notes:
+ *   - The function blocks until a client connects to the pipe.
+ *   - The created pipe has duplex (read/write) access with byte-based communication.
+ */
 extern "C" HANDLE createAndConnectPipe(const char* pipeName, DWORD bufferSize) {
-	HANDLE hPipe = CreateNamedPipe(
-		pipeName,                 // Pipe name passed as argument
-		PIPE_ACCESS_DUPLEX,        // Read/Write access
-		PIPE_TYPE_BYTE |           // Byte-type pipe
-		PIPE_READMODE_BYTE |       // Byte-read mode
-		PIPE_WAIT,                 // Blocking mode
-		1,                         // Max number of instances
-		bufferSize,                // Output buffer size
-		bufferSize,                // Input buffer size
-		0,                         // Default timeout
-		NULL);                     // Default security attributes
+    HANDLE hPipe = CreateNamedPipe(
+        pipeName,                 // Pipe name passed as argument
+        PIPE_ACCESS_DUPLEX,        // Read/Write access
+        PIPE_TYPE_BYTE |           // Byte-type pipe
+        PIPE_READMODE_BYTE |       // Byte-read mode
+        PIPE_WAIT,                 // Blocking mode
+        1,                         // Max number of instances
+        bufferSize,                // Output buffer size
+        bufferSize,                // Input buffer size
+        0,                         // Default timeout
+        NULL);                     // Default security attributes
 
-	if (hPipe == INVALID_HANDLE_VALUE) {
-		std::cerr << "Failed to create named pipe.\n";
-		return NULL;
-	}
+    if (hPipe == INVALID_HANDLE_VALUE) {
+        std::cerr << "Failed to create named pipe.\n";
+        return NULL;
+    }
 
-	std::cout << "Waiting for client connection...\n";
-	BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
+    std::cout << "Waiting for client connection...\n";
+    BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
 
-	if (!connected) {
-		std::cerr << "Failed to connect to the client.\n";
-		CloseHandle(hPipe);
-		return NULL;
-	}
+    if (!connected) {
+        std::cerr << "Failed to connect to the client.\n";
+        CloseHandle(hPipe);
+        return NULL;
+    }
 
-	return hPipe;
+    return hPipe;
 }
 
-
-extern "C" bool CheckForRequest(HANDLE hPipe)
-{
-	DWORD bytesAvailable = 0;
-	if (PeekNamedPipe(hPipe, NULL, 0, NULL, &bytesAvailable, NULL) && bytesAvailable > 0)
-	{
-		return true; // Data is available to read
-	}
-	return false; // No data available
+/*
+ * Function: CheckForRequest
+ * Description: Checks if the client has sent any data to the server without blocking.
+ * Parameters:
+ *   - hPipe: A handle to the pipe (HANDLE) to check for available data.
+ * Returns:
+ *   - bool: Returns true if data is available to read; false otherwise.
+ * Notes:
+ *   - Uses PeekNamedPipe to check for data without removing it from the pipe.
+ */
+extern "C" bool CheckForRequest(HANDLE hPipe) {
+    DWORD bytesAvailable = 0;
+    if (PeekNamedPipe(hPipe, NULL, 0, NULL, &bytesAvailable, NULL) && bytesAvailable > 0) {
+        return true; // Data is available to read
+    }
+    return false; // No data available
 }
 
-// choice = 0: Start the data acquisition
-extern "C" int handleClientRequests(HANDLE hPipe, short* data, double* corrMatrix, int segmentIndex, DWORD bytesToSend, int choice)
-{
-	if (!CheckForRequest(hPipe))
-	{
-		return 0;  // No data to process
-	}
+/*
+ * Function: handleClientRequests
+ * Description: Handles requests from the client connected to the named pipe. Depending on the request,
+ *              the function may start or stop the experiment, or send data back to the client.
+ * Parameters:
+ *   - hPipe: A handle to the pipe (HANDLE) for communication.
+ *   - data: Pointer to an array of short integers (short*) containing the raw signals data to send.
+ *   - corrMatrix: Pointer to an array of doubles (double*) representing the correlation matrix to send.
+ *   - segmentIndex: The index (int) of the data segment to send.
+ *   - bytesToSend: The number of bytes to send (DWORD) from the `data` array, which means the number pf signal points sent.
+ * Returns:
+ *   - int: Status code indicating the result:
+ *          - 0: No data to process.
+ *          - 1: Error occurred (e.g., reading or writing data).
+ *          - 2: Experiment start requested.
+ *          - 3: Data sent successfully.
+ *          - 4: Experiment stop requested.
+ * Notes:
+ *   - This function calls CheckForRequest to verify if the client has sent data.
+ *   - The function uses `ReadFile` and `WriteFile` to read from and write to the pipe.
+ */
+extern "C" int handleClientRequests(HANDLE hPipe, short* data, double* corrMatrix, int segmentIndex, DWORD bytesToSend) {
+    if (!CheckForRequest(hPipe)) {
+        return 0;  // No data to process
+    }
 
-	// Read the client's request
-	short request;
-	DWORD bytesRead;
-	BOOL success = ReadFile(hPipe, &request, sizeof(request), &bytesRead, NULL);
-	if (!success || bytesRead != sizeof(request))
-	{
-		std::cerr << "Failed to read request from client.\n";
-		return 1;  // Error reading the request
-	}
+    // Read the client's request
+    short request;
+    DWORD bytesRead;
+    BOOL success = ReadFile(hPipe, &request, sizeof(request), &bytesRead, NULL);
+    if (!success || bytesRead != sizeof(request)) {
+        std::cerr << "Failed to read request from client.\n";
+        return 1;  // Error reading the request
+    }
 
-	if (request == 1) {
-		return 2;			// The client requested to start the data acquisition
-	}
+	if (request == 1) { // The client requested to start the experiment
+        return 2; // The client requested to start the experiment
+    }
+	else if (request == 2) { // The client requested to send data including raw signals and correlation matrix
+        DWORD bytesWritten1;
+        DWORD bytesWritten2;
 
+        // Calculate the starting position for the segment to send in the data array
+        short* segmentStart = data + (segmentIndex * (bytesToSend / sizeof(short))); // Calculate the starting point
 
-	else if (request == 0) {
-		
+        // Send a segment of `data` to the client
+        success = WriteFile(hPipe, segmentStart, bytesToSend, &bytesWritten1, NULL);
+        if (!success || bytesWritten1 != bytesToSend) {
+            std::cerr << "Failed to send data segment to client.\n";
+            return 1;  // Error sending the data segment
+        }
 
-		std::cout << "Received request from client, sending data...\n";
+        // Send the correlation matrix to the client
+        success = WriteFile(hPipe, corrMatrix, 512, &bytesWritten2, NULL);
+        if (!success || bytesWritten2 != 512) {
+            std::cerr << "Failed to send correlation matrix to client.\n";
+            return 1;  // Error sending the correlation matrix
+        }
 
-		// Send a specific number of bytes of a specific segment of `data` or corrMatrix to the client
-		DWORD bytesWritten1;
-		DWORD bytesWritten2;
-
-		// Calculate the starting position for the segment to send
-		short* segmentStart = data + (segmentIndex * (bytesToSend / sizeof(short))); // Calculate the starting point
-		success = WriteFile(hPipe, segmentStart, 200, &bytesWritten1, NULL);
-
-
-		// Calculate the starting position for the segment to send
-
-		success = WriteFile(hPipe, corrMatrix, 512, &bytesWritten2, NULL);
-
-
-
-
-		if (!success || bytesWritten1 != 200 || bytesWritten2 != 512)
-		{
-			std::cerr << "Failed to send data to client.\n";
-			return 1;  // Error sending the data
-		}
-
-		//std::cout << "Sent data to client.\n";
-		return 3;  // Successfully processed the request and sent data
-	}
-
-	else if (request == 2) {
-		return 4;			// The client requested to stop the data acquisition
-	}
-
-	else {
-		std::cerr << "Invalid request received from client.\n";
-		return 1;  // Invalid request
-	}
+        return 3;
+    }
+	else if (request == 3) { // The client requested to abort the experiment
+        return 4; // The client requested to stop experiement
+    }
+    else {
+        return 1;  // Invalid request
+    }
 }

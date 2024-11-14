@@ -10,12 +10,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Images\Rice-EQUAL-Lab-Logo.png" />
+    <None Remove="Images\rice-university-logo.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="LiveCharts.Wpf" Version="0.9.7" />
     <PackageReference Include="LiveChartsCore.SkiaSharpView.Uno.WinUI" Version="2.0.0-rc2.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RelativeMove\MotorControl.csproj" />
+    <ProjectReference Include="..\MotorMove\MotorMove.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Images\Rice-EQUAL-Lab-Logo.png" />
+    <Resource Include="Images\rice-university-logo.jpg" />
   </ItemGroup>
 
 </Project>

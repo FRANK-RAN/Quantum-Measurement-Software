@@ -4,12 +4,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quantum Measurement UI", "Quantum Measurement UI\Quantum Measurement UI.csproj", "{3C9B7EED-32EF-450B-A528-FC7602EB4143}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D} = {0CD85974-3E61-4336-AF41-FB3372B0DF3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CrossCorrelation", "CrossCorrelation\CrossCorrelation.vcxproj", "{3A6F7D1E-B953-4FA0-A5E0-2FC7F9A51DD7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GageStreamThruGPU", "GageStreamThruGPU\GageStreamThruGPU-Simple.vcxproj", "{3114D922-5CB9-4BBC-867F-FB15E1D9C2AF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MotorControl", "RelativeMove\MotorControl.csproj", "{4A5C9D79-110C-4637-B469-900270B7E2B7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MotorMove", "MotorMove\MotorMove.csproj", "{0CD85974-3E61-4336-AF41-FB3372B0DF3D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,14 +46,14 @@ Global
 		{3114D922-5CB9-4BBC-867F-FB15E1D9C2AF}.Release|Any CPU.Build.0 = Release|x64
 		{3114D922-5CB9-4BBC-867F-FB15E1D9C2AF}.Release|x64.ActiveCfg = Release|x64
 		{3114D922-5CB9-4BBC-867F-FB15E1D9C2AF}.Release|x64.Build.0 = Release|x64
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Debug|x64.Build.0 = Debug|Any CPU
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Release|x64.ActiveCfg = Release|Any CPU
-		{4A5C9D79-110C-4637-B469-900270B7E2B7}.Release|x64.Build.0 = Release|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Debug|x64.Build.0 = Debug|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Release|x64.ActiveCfg = Release|Any CPU
+		{0CD85974-3E61-4336-AF41-FB3372B0DF3D}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

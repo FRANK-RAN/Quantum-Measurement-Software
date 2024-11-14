@@ -10,20 +10,25 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
 using System.IO;
+using System.Windows.Threading;
 
 namespace Quantum_measurement_UI
 {
     public partial class MainWindow : Window
     {
+        // Constants for named pipe communication
         private const string PipeName = "DataPipe";
-       
-        private const int DataPoints = 100;
-        private const double UpdateInterval = 200; // milliseconds
 
+        // Constants for data acquisition
+        private const int DataPoints = 100;
+        private const double UpdateInterval = 200; // milliseconds, 5 Hz update rate
+
+        // Buffers for storing data and correlation matrix
         private short[] dataBuffer = new short[DataPoints];
         private double[] corrMatrixBuffer = new double[64];
         private NamedPipeClientStream pipeClient;
-        
+
+        // Task for updating data periodically
         private Task updateTask;
         private CancellationTokenSource cancellationTokenSource;
 
@@ -38,6 +43,7 @@ namespace Quantum_measurement_UI
         // Fields for updating motor positions automatically
         private CancellationTokenSource motorPositionCancellationTokenSource; // For cancelling position updates
 
+        // For SignalChart
         public SeriesCollection SeriesCollection { get; set; }
         public ChartValues<double> ChannelAValues { get; set; }
         public ChartValues<double> ChannelBValues { get; set; }
@@ -59,8 +65,17 @@ namespace Quantum_measurement_UI
         private Autobalancer autobalancer;
 
         // For experiement log
+        private string experimentLogDirectory;
         private string experimentLogFilePath;
         private StreamWriter experimentLogWriter;
+
+        private const string IniFilePath = @"C:\Users\jr151\source\repos\Quantum Measurement UI\GageStreamThruGPU\StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
+
+        private DateTime experimentStartTime;   // Stores the start time of the experiment
+        private bool isExperimentRunning;       // Flag to indicate if the experiment is running
+        private DispatcherTimer elapsedTimer;   // Timer to update the elapsed time display
+        private int extClkValue; // Stores the external clock value from the ini file
+          
 
 
         public MainWindow()
@@ -138,8 +153,15 @@ namespace Quantum_measurement_UI
 
             PixelChart.Series = PixelSeriesCollection;
 
-            StartDataUpdates();
+            StartDataUpdates();          // Start updating data forvisualization on the UI automatically
             StartMotorPositionUpdates(); // Start updating motor positions automatically
+
+            // Initialize elapsed time timer
+            elapsedTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            elapsedTimer.Tick += UpdateElapsedTime;
         }
 
         // Initialize the experiment log file and copy the streaming configuration from StreamThruGPUY_Simple.ini
@@ -151,6 +173,7 @@ namespace Quantum_measurement_UI
 
             // Ensure the timestamped directory exists
             Directory.CreateDirectory(resultDirectory);
+            experimentLogDirectory = timestamp;
 
             // Set the log file path within the timestamped directory
             experimentLogFilePath = Path.Combine(resultDirectory, "exp.log");
@@ -305,6 +328,7 @@ namespace Quantum_measurement_UI
                     }
 
                     bool success = await RequestAndReceiveDataAsync();
+                    
 
                     if (success)
                     {
@@ -324,6 +348,7 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 AppendMessage($"Exception: {ex.Message}");
+               
             }
         }
 
@@ -333,7 +358,7 @@ namespace Quantum_measurement_UI
             try
             {
                 // Send a request to the server
-                byte[] request = BitConverter.GetBytes((short)0);
+                byte[] request = BitConverter.GetBytes((short)2);
 
               
                 await pipeClient.WriteAsync(request, 0, request.Length);
@@ -362,6 +387,13 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 AppendMessage($"Communication error: {ex.Message}");
+                if (!pipeClient.IsConnected)
+                {
+                    pipeClient.Dispose();
+                    pipeClient = null;
+                    isPaused = true;
+                }
+                isPaused = true;
                 return false; // Communication failed
             }
         }
@@ -428,51 +460,85 @@ namespace Quantum_measurement_UI
         // Event handler for the Start button click
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
+            // Fetch external clock value from the ini file
+            extClkValue = GetExtClkValueFromIni();
+            ExtClkStatusText.Text = extClkValue == 1 ? "On" : "Off";
+            ExtClkStatusIndicator.Fill = extClkValue == 1 ? Brushes.Green : Brushes.Red;
+
+            // Start elapsed time tracking
+            experimentStartTime = DateTime.Now;
+            isExperimentRunning = true;
+            elapsedTimer.Start();
+
+            // Update experiment status indicators
+            ExperimentStatusText.Text = "On";
+            ExperimentStatusIndicator.Fill = Brushes.Green;
+
+
             // initialize the experiment log
             InitializeExperimentLog();
 
             // Send a request to the server to start data acquisition
-            byte[] request = BitConverter.GetBytes((short)1);
-            pipeClient.Write(request, 0, request.Length);      // Send the request to start data acquisition
-            isPaused = false;                                       // data updates can start
-            AppendMessage("Data Acquisition started.");
-            LogExperimentEvent("Data Acquisition started.");
-        }
+            byte[] request = BitConverter.GetBytes((short)1);  // the request to start experiment is 1
+            pipeClient.Write(request, 0, request.Length);      // Send the request to experiment
 
-
-        private void TerminateButton_Click(object sender, RoutedEventArgs e)
-        {
-
-            // clear all other works running and close the pipe
-            cancellationTokenSource.Cancel();               // stop the data updates
-            motorPositionCancellationTokenSource?.Cancel();   // stop the motor position updates
-            autobalancer?.Stop(); // Stop autobalance if running
-            motorController.Shutdown(); // Properly shut down the motor controller when closing
-            StopContinuousMotion(); // Stop any ongoing motion
-
-
-            // Send a request to the server
+            byte[] expDirBytes = System.Text.Encoding.ASCII.GetBytes(experimentLogDirectory);
+            pipeClient.Write(expDirBytes, 0, expDirBytes.Length); // Send the experiment directory to the server
             
-            byte[] request = BitConverter.GetBytes((short)2);   // Send the request to terminate data acquisition
-            pipeClient.Write(request, 0, request.Length);      // Send the request to start data acquisition
-
-            pipeClient?.Dispose(); // Clean up the named pipe client
-            AppendMessage("Experiment terminated.");
-            LogExperimentEvent("Experiment terminated.");
 
 
-
-            // Close the experiment log
-            if (experimentLogWriter != null)
-            {
-                experimentLogWriter.WriteLine("\n--- Experiment End ---\n");
-                experimentLogWriter.Flush();
-                experimentLogWriter.Close();
-                experimentLogWriter = null;
-            }
-
-
+            isPaused = false;                                       // data updates can start
+            AppendMessage("Experiment Data Acquisition started.");
+            LogExperimentEvent("Experiment Data Acquisition started.");
         }
+
+
+       
+
+
+        private async void TerminateButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Stop all active processes
+                cancellationTokenSource?.Cancel();               // Stop the data updates
+                motorPositionCancellationTokenSource?.Cancel();  // Stop motor position updates
+                motionCancellationTokenSource?.Cancel();         // Stop automatic motion if running
+                autobalancer?.Stop();                            // Stop autobalancer if running
+
+                // Send a termination signal to the other program via the pipe
+                if (pipeClient?.IsConnected == true)
+                {
+                    byte[] request = BitConverter.GetBytes((short)3); // Request to terminate data acquisition
+                    await pipeClient.WriteAsync(request, 0, request.Length); // Send termination request
+                    await pipeClient.FlushAsync(); // Ensure all data is sent
+                }
+
+                // Wait briefly to allow the other program to process the termination request
+                await Task.Delay(500);
+
+                // Close the pipe connection
+                pipeClient?.Dispose();
+                pipeClient = null;
+
+                AppendMessage("Experiment terminated.");
+                LogExperimentEvent("Experiment terminated.");
+
+                // Close the experiment log
+                if (experimentLogWriter != null)
+                {
+                    experimentLogWriter.WriteLine("\n--- Experiment End ---\n");
+                    experimentLogWriter.Flush();
+                    experimentLogWriter.Close();
+                    experimentLogWriter = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error during termination: {ex.Message}");
+            }
+        }
+
 
         // Event handler for the Pause button click
         private void PauseButton_Click(object sender, RoutedEventArgs e)
@@ -896,6 +962,126 @@ namespace Quantum_measurement_UI
             autobalancer.Stop();
         }
 
+        // Event handler for Apply button click
+        private void ApplyConfigButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Get values from UI
+                int extClkValue = int.Parse(ExtClkTextBox.Text);
+                int timeCounterValue = int.Parse(TimeCounterTextBox.Text);
+
+                // Update the .ini file with the new values
+                UpdateIniFile("Acquisition", "ExtClk", extClkValue.ToString());
+                UpdateIniFile("StmConfig", "TimeCounter", timeCounterValue.ToString());
+
+                // Provide feedback to the user
+                AppendMessage("Configuration applied successfully.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error applying configuration: {ex.Message}");
+            }
+        }
+
+        // Method to update a specific key in a specific section of the .ini file
+        private void UpdateIniFile(string section, string key, string value)
+        {
+            if (!File.Exists(IniFilePath))
+            {
+                AppendMessage("Configuration file not found.");
+                return;
+            }
+
+            // Read all lines from the ini file
+            var lines = File.ReadAllLines(IniFilePath);
+            bool sectionFound = false;
+            bool keyUpdated = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].Trim();
+
+                // Check if this line is the section we're looking for
+                if (line.Equals($"[{section}]"))
+                {
+                    sectionFound = true;
+                }
+                // If we're in the correct section, look for the key
+                else if (sectionFound && line.StartsWith($"{key}=", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Update the key with the new value
+                    lines[i] = $"{key}={value}";
+                    keyUpdated = true;
+                    break;
+                }
+                // If we encounter another section header, stop searching for the key
+                else if (sectionFound && line.StartsWith("["))
+                {
+                    break;
+                }
+            }
+
+            // If the section or key was not found, append it
+            if (!sectionFound)
+            {
+                AppendMessage($"Section [{section}] not found, adding it.");
+                using (StreamWriter writer = new StreamWriter(IniFilePath, true))
+                {
+                    writer.WriteLine($"\n[{section}]");
+                    writer.WriteLine($"{key}={value}");
+                }
+            }
+            else if (!keyUpdated)
+            {
+                AppendMessage($"Key {key} not found in section [{section}], adding it.");
+                using (StreamWriter writer = new StreamWriter(IniFilePath, true))
+                {
+                    writer.WriteLine($"{key}={value}");
+                }
+            }
+            else
+            {
+                // Write the updated lines back to the file
+                File.WriteAllLines(IniFilePath, lines);
+            }
+        }
+
+        // update the elapsed time display
+        private void UpdateElapsedTime(object sender, EventArgs e)
+        {
+            if (isExperimentRunning)
+            {
+                TimeSpan elapsed = DateTime.Now - experimentStartTime;
+                ElapsedTimeText.Text = elapsed.ToString(@"hh\:mm\:ss");
+            }
+        }
+
+        // Get the external clock value from the .ini file
+        private int GetExtClkValueFromIni()
+        {
+            if (!File.Exists(IniFilePath))
+            {
+                AppendMessage("Configuration file not found.");
+                return 0; // Default to 0 if not found
+            }
+
+            foreach (var line in File.ReadAllLines(IniFilePath))
+            {
+                if (line.Trim().StartsWith("ExtClk=", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (int.TryParse(line.Split('=')[1], out int value))
+                    {
+                        return value;
+                    }
+                }
+            }
+
+            return 0; // Default to 0 if not found
+        }
+
+
+
         // Clean up resources when the window is closed
         protected override void OnClosed(EventArgs e)
         {
@@ -908,5 +1094,6 @@ namespace Quantum_measurement_UI
             StopContinuousMotion(); // Stop any ongoing motion
             base.OnClosed(e);
         }
+        
     }
 }

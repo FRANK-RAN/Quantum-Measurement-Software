@@ -3,6 +3,15 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Ignore specific folders and files in Quantum Measurement UI
+results/*
+Logs/
+GageStreamThruGPU/Analysis.txt/
+GageStreamThruGPU/cm.bin/
+GageStreamThruGPU/profile.txt/
+GageStreamThruGPU/Result.txt/
+GageStreamThruGPU/StreamThruGPU.ini/
+
 # User-specific files
 *.rsuser
 *.suo

@@ -58,6 +58,7 @@
 
 
 HANDLE raw_signal_hPipe = NULL;					// Handle to the pipe for all communication between software process and gagestreamthruGPU process
+char experimentLogDirectory[256] = "C:\\Users\\jr151\\source\\repos\\Quantum Measurement UI\\Results\\"; // 256 is an example size, adjust if needed
 
 // User configuration variables
 typedef struct
@@ -172,7 +173,7 @@ extern cudaError_t ComputeG2CorrelationGPU(
 extern void initializeArrayWithCuda(double* dev_array, int size, double value);
 extern int CPU_Equation_PlusOne(void* buffer, __int64 length, double* gpu_average_matrix);
 extern HANDLE createAndConnectPipe(const char* pipeName, DWORD bufferSize);
-extern int handleClientRequests(HANDLE hPipe, short* data, double* corrMatrix, int segmentIndex, DWORD bytesToSend, int choice);
+extern int handleClientRequests(HANDLE hPipe, short* data, double* corrMatrix, int segmentIndex, DWORD bytesToSend);
 extern bool CheckForRequest(HANDLE hPipe);
 
 #ifdef __cplusplus
@@ -245,14 +246,51 @@ int _tmain()
 	int							display_result = 1;
 	
 
-	clock_t pre_start_time, pre_current_time;
-	double pre_time;
+	clock_t						pre_start_time, pre_current_time;
+	double						pre_time;
 
 	BOOL						useIPC = FALSE;
 
 	
+	raw_signal_hPipe = createAndConnectPipe(RAW_SIG_PIPE_NAME, 0);  // Establish a communication pipe
+	if (raw_signal_hPipe == NULL) {
+		fprintf(stderr, "Failed to create communication pipe.\n");
+		return -1;
+	}
+	
+	
+	
+	int command = 0;
+	// check the pipe for any request from the client
+	while (1) {
+
+		// Check if there is any request from the client
+		command = handleClientRequests(raw_signal_hPipe, NULL, NULL, 0, 0, 0);
+
+		if (command == 2) {
+
+			// Step 1: Read the fixed-length (15-byte) directory name
+			char dirName[16];  // Buffer to hold the 15-byte directory name + 1 null terminator
+			DWORD bytesRead;
+			BOOL success = ReadFile(raw_signal_hPipe, dirName, 15, &bytesRead, NULL);
+			if (!success || bytesRead != 15) {
+				fprintf(stderr, "Failed to read directory name from client.\n");
+				continue;  // Continue checking for other commands
+			}
+			dirName[15] = '\0';  // Null-terminate the directory name
+
+			// Step 2: Concatenate the base directory with the received directory name
 
 
+			snprintf(experimentLogDirectory, sizeof(experimentLogDirectory), "%s%s", experimentLogDirectory, dirName);
+
+			printf("Full experiment directory path: %s\n", experimentLogDirectory);
+
+			break;
+		}
+
+	}
+	
 	pre_start_time = clock();
 
 	// Initializes the CompuScope boards found in the system. If the
@@ -292,6 +330,9 @@ int _tmain()
 
 	// Display the system name from the driver
 	_ftprintf(stdout, _T("\nBoard Name: %s"), CsSysInfo.strBoardName);
+
+
+
 
 	//	We are analysing the ini file to find the number of triggers
 	i32Status = CsAs_ConfigureSystem(g_hSystem, (int)CsSysInfo.u32ChannelCount,
@@ -373,12 +414,6 @@ int _tmain()
 		_ftprintf(stdout, _T("\nNo ini entry for Experiment configuration. Using defaults."));
 	}
 
-
-	// create pipe for communication between software process and gagestreamthruGPU process
-	useIPC = g_ExpConfig.useIPC;	// 1 for using IPC, 0 for not using IPC
-	if (useIPC) {
-		raw_signal_hPipe = createAndConnectPipe(RAW_SIG_PIPE_NAME, 0);
-	}
 
 	// Streaming Configuration.
 	// Validate if the board supports hardware streaming. If  it is not supported, 
@@ -477,19 +512,7 @@ int _tmain()
 		}
 	}
 
-	int start_command = 0;
-	// check the pipe for any request from the client
-	while (1) {
-
-		// Check if there is any request from the client
-		start_command = handleClientRequests(raw_signal_hPipe, NULL, NULL, 0, 0, 0);
-
-		if (start_command == 2)
-			break;
-
-	}
 	
-	printf("Start command received\n");
 	// Start the streaming data acquisition
 	printf("\nStart streaming. Press ESC to abort\n\n");
 	i32Status = CsDo(g_hSystem, ACTION_START);
@@ -1066,6 +1089,15 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 	int                 correlation_type = g_ExpConfig.correlation_type;	// 0 for cross-correlation, 1 for g2-correlation
 	BOOL				useIPC = g_ExpConfig.useIPC;	// 1 for using IPC, 0 for not using IPC
 
+	char				cmBinPath[256];					// Path to the binary file containing the correlation matrices
+	FILE*				binFile = NULL;						// File pointer to the binary file containing the correlation matrices	
+
+	char				analysisPath[256];					// Path to the analysis file containing the correlation matrices for analysis
+	FILE*				analysisFile = NULL;							// File pointer to the analysis file containing the correlation matrices for analysis
+
+	char				profilePath[256];		// Path to the profile file containing the profiling information
+	FILE*				profileFile = NULL;
+
 	// CUDA HyperParameters
 	uInt32				totalThreads;														// Total number of threads lanuched in the kernel
 	int					gridSize;															// Number of blocks in the grid		
@@ -1075,6 +1107,8 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 	uInt32				totalSegNum;														// Total number of segments in the data transfer
 	int					corrMatrixSize; 													// Size of the correlation matrix
 	int					segmentSize;														// Size of one segment in the input data 
+
+
 
 
 
@@ -1090,15 +1124,34 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 	const char* experimentName = "Experiment_1"; // Change this for different experiments
 	double total_time = 0.0;
 
-	FILE* profileFile = NULL;
+	
+
+	snprintf(cmBinPath, sizeof(cmBinPath), "%s\\cm.bin", experimentLogDirectory);
+	snprintf(analysisPath, sizeof(analysisPath), "%s\\analysis.txt", experimentLogDirectory);
+	snprintf(profilePath, sizeof(profilePath), "%s\\profile.txt", experimentLogDirectory);
+
+	profileFile = fopen(profilePath, "w");
+	if (profileFile == NULL) {
+		fprintf(stderr, "Unable to open profile.txt for writing.\n");
+		ExitThread(1);
+	}
+
+	// Open the binary file containing the correlation matrices
+	binFile = fopen(cmBinPath, "w");
+	if (binFile == NULL) {
+		fprintf(stderr, "Unable to open cm.bin for reading.\n");
+		ExitThread(1);
+	}
+
+	// Open the analysis file containing the correlation matrices for analysis
+	analysisFile = fopen(analysisPath, "w");
+	if (analysisFile == NULL) {
+		fprintf(stderr, "Unable to open analysis.txt for writing.\n");
+		ExitThread(1);
+	}
 	
 	// Profiling variables
 	if (timer == TRUE) {
-		profileFile = fopen("profile.txt", "w");
-		if (profileFile == NULL) {
-			fprintf(stderr, "Unable to open profile.txt for writing.\n");
-			ExitThread(1);
-		}
 		fprintf(profileFile, "Experiment: %s\n", experimentName);
 	}
 
@@ -1358,28 +1411,14 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 		}
 
 
-		FILE* fptr;
-		if (g_StreamConfig.bCascadeResult == 0) fptr = fopen("Analysis.txt", "w");
-		if (g_StreamConfig.bCascadeResult == 1) fptr = fopen("Analysis.txt", "a");
-		fprintf(fptr, "//////\nBuffer size (Samples)\n%d\nSampling Rate (Hz)\n%d\n///\n", u32TransferSizeSamples, g_CsAcqCfg.i64SampleRate);
-		fclose(fptr);
+		//FILE* fptr;
+		//if (g_StreamConfig.bCascadeResult == 0) fptr = fopen("Analysis.txt", "w");
+		//if (g_StreamConfig.bCascadeResult == 1) fptr = fopen("Analysis.txt", "a");
+		fprintf(analysisFile, "//////\nBuffer size (Samples)\n%d\nSampling Rate (Hz)\n%d\n///\n", u32TransferSizeSamples, g_CsAcqCfg.i64SampleRate);
+		//fclose(fptr);
 
 
-		// Open the binary file for writing
-		FILE* binFile = fopen("cm.bin", "wb");
-		if (binFile == NULL) {
-			printf("Error opening file for writing\n");
-			return 1;
-		}
-
-		FILE* AnalysisFile = fopen("Analysis.txt", "a");
-		if (AnalysisFile == NULL) {
-			printf("Error opening file for writing\n");
-			return 1;
-		}
-
-
-		// Steam acqusition has started.
+    	// Steam acqusition has started.
 		// loop until either we've done the number of segments we want, or
 		// the ESC key was pressed to abort. While we loop, we transfer data into
 		// pCurrentBuffer and save pWorkBuffer to hard disk
@@ -1463,7 +1502,7 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 							d_reducedCorrMatrix,
 							d_scaling_factors,
 							binFile,
-							AnalysisFile);
+							analysisFile);
 					}
 
 					else if (correlation_type == 1) {
@@ -1488,7 +1527,7 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 							d_reducedCorrMatrixB,
 							d_scaling_factors,
 							binFile,
-							AnalysisFile);
+							analysisFile);
 					}
 					
 					
@@ -1535,7 +1574,7 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 			}
 
 			if (NULL != pWorkBuffer && useIPC) {
-				int result = handleClientRequests(raw_signal_hPipe, pWorkBuffer, h_odata, 0, 200, 0);  // 200 is the number of bytes to send, check request from client and send data
+				int result = handleClientRequests(raw_signal_hPipe, pWorkBuffer, h_odata, 0, 200);  // 200 is the number of bytes of signal to send, check request from client and send data
 				if (result == 4) {
 					SetEvent(g_hStreamError);
 					bDone = TRUE;
@@ -1726,7 +1765,7 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 		
 		// Close the binary file, and the analysis file
 		fclose(binFile);
-		fclose(AnalysisFile);
+		fclose(analysisFile);
 
 		ExitThread(dwRetCode);
 	}
