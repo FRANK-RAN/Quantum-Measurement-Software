@@ -5,7 +5,7 @@
 
 # Ignore specific folders and files in Quantum Measurement UI
 results/*
-Logs/
+Logs/*
 GageStreamThruGPU/Analysis.txt/
 GageStreamThruGPU/cm.bin/
 GageStreamThruGPU/profile.txt/
