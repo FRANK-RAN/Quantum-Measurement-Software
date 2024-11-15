@@ -8,7 +8,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="800"/>
             <!-- Main content (TabControl) -->
-            <RowDefinition Height="*" />
+            <RowDefinition Height="200" />
             <!-- Shared message box -->
         </Grid.RowDefinitions>
 

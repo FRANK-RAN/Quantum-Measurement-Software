@@ -251,7 +251,7 @@ int _tmain()
 
 	BOOL						useIPC = FALSE;
 
-	
+
 	raw_signal_hPipe = createAndConnectPipe(RAW_SIG_PIPE_NAME, 0);  // Establish a communication pipe
 	if (raw_signal_hPipe == NULL) {
 		fprintf(stderr, "Failed to create communication pipe.\n");

@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Controls;
 using System.IO;
 using System.Windows.Threading;
+using System.Diagnostics;
 
 namespace Quantum_measurement_UI
 {
@@ -64,24 +65,23 @@ namespace Quantum_measurement_UI
         // Instance of Autobalancer
         private Autobalancer autobalancer;
 
-        // For experiement log
+        // For experiment log
         private string experimentLogDirectory;
         private string experimentLogFilePath;
         private StreamWriter experimentLogWriter;
 
-        private const string IniFilePath = @"C:\Users\jr151\source\repos\Quantum Measurement UI\GageStreamThruGPU\StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
+        private const string IniFilePath = @"StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
 
         private DateTime experimentStartTime;   // Stores the start time of the experiment
         private bool isExperimentRunning;       // Flag to indicate if the experiment is running
         private DispatcherTimer elapsedTimer;   // Timer to update the elapsed time display
         private int extClkValue; // Stores the external clock value from the ini file
-          
 
+        private Process gageStreamProcess;      // Process for starting the GageStreamThruGPU program
 
         public MainWindow()
         {
             InitializeComponent();
-            InitializePipeClient();
 
             // Initialize the chart series
             ChannelAValues = new ChartValues<double>();
@@ -106,7 +106,6 @@ namespace Quantum_measurement_UI
                     Fill = Brushes.Transparent
                 }
             };
-
 
             SignalChart.Series = SeriesCollection;
 
@@ -153,9 +152,6 @@ namespace Quantum_measurement_UI
 
             PixelChart.Series = PixelSeriesCollection;
 
-            StartDataUpdates();          // Start updating data forvisualization on the UI automatically
-            StartMotorPositionUpdates(); // Start updating motor positions automatically
-
             // Initialize elapsed time timer
             elapsedTimer = new DispatcherTimer
             {
@@ -164,7 +160,7 @@ namespace Quantum_measurement_UI
             elapsedTimer.Tick += UpdateElapsedTime;
         }
 
-        // Initialize the experiment log file and copy the streaming configuration from StreamThruGPUY_Simple.ini
+        // Initialize the experiment log file and copy the streaming configuration from StreamThruGPU.ini
         private void InitializeExperimentLog()
         {
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -183,7 +179,7 @@ namespace Quantum_measurement_UI
             experimentLogWriter.WriteLine($"Experiment Log: {experimentLogFilePath}\n");
 
             // Use the specified path for the ini file
-            string configFilePath = @"C:\Users\jr151\source\repos\Quantum Measurement UI\GageStreamThruGPU\StreamThruGPU.ini";
+            string configFilePath = IniFilePath;
 
             experimentLogWriter.WriteLine("The streaming configuration is as follows:\n");
 
@@ -200,9 +196,6 @@ namespace Quantum_measurement_UI
             experimentLogWriter.Flush();
         }
 
-
-
-
         // Method to log events to the experiment log file with a timestamp
         public void LogExperimentEvent(string message)
         {
@@ -213,8 +206,6 @@ namespace Quantum_measurement_UI
                 experimentLogWriter.Flush(); // Ensure immediate write to the file
             }
         }
-
-
 
         // Method to append messages to the shared message log with a timestamp
         public void AppendMessage(string message)
@@ -328,7 +319,6 @@ namespace Quantum_measurement_UI
                     }
 
                     bool success = await RequestAndReceiveDataAsync();
-                    
 
                     if (success)
                     {
@@ -348,7 +338,6 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 AppendMessage($"Exception: {ex.Message}");
-               
             }
         }
 
@@ -360,9 +349,7 @@ namespace Quantum_measurement_UI
                 // Send a request to the server
                 byte[] request = BitConverter.GetBytes((short)2);
 
-              
                 await pipeClient.WriteAsync(request, 0, request.Length);
-                
 
                 // Receive data from the server
                 byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
@@ -375,7 +362,7 @@ namespace Quantum_measurement_UI
                 {
                     Buffer.BlockCopy(dataBufferBytes, 0, dataBuffer, 0, dataBufferBytes.Length);
                     Buffer.BlockCopy(corrBufferBytes, 0, corrMatrixBuffer, 0, corrBufferBytes.Length);
-                   
+
                     return true; // Data received successfully
                 }
                 else
@@ -458,45 +445,79 @@ namespace Quantum_measurement_UI
         }
 
         // Event handler for the Start button click
-        private void StartButton_Click(object sender, RoutedEventArgs e)
+        private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            // Fetch external clock value from the ini file
-            extClkValue = GetExtClkValueFromIni();
-            ExtClkStatusText.Text = extClkValue == 1 ? "On" : "Off";
-            ExtClkStatusIndicator.Fill = extClkValue == 1 ? Brushes.Green : Brushes.Red;
-
-            // Start elapsed time tracking
-            experimentStartTime = DateTime.Now;
-            isExperimentRunning = true;
-            elapsedTimer.Start();
-
-            // Update experiment status indicators
-            ExperimentStatusText.Text = "On";
-            ExperimentStatusIndicator.Fill = Brushes.Green;
-
-
-            // initialize the experiment log
-            InitializeExperimentLog();
-
-            // Send a request to the server to start data acquisition
-            byte[] request = BitConverter.GetBytes((short)1);  // the request to start experiment is 1
-            pipeClient.Write(request, 0, request.Length);      // Send the request to experiment
-
-            byte[] expDirBytes = System.Text.Encoding.ASCII.GetBytes(experimentLogDirectory);
-            pipeClient.Write(expDirBytes, 0, expDirBytes.Length); // Send the experiment directory to the server
+            if (isExperimentRunning)
+            {
+                AppendMessage("Experiment is already running.");
+            }
+            else
+            {
+                await StartExperimentAsync();
+            }
             
-
-
-            isPaused = false;                                       // data updates can start
-            AppendMessage("Experiment Data Acquisition started.");
-            LogExperimentEvent("Experiment Data Acquisition started.");
         }
 
+        // Start the experiment
+        private async Task StartExperimentAsync()
+        {
+            
+            if (isExperimentRunning)
+            {
+                await TerminateExperimentAsync(); // Ensure previous experiment is terminated
+            }
 
-       
+            try
+            {
+                StartGageStreamProcess();   // Start the GageStreamThruGPU program
+                InitializePipeClient();     // Initialize the pipe client for communication
 
+                // Fetch external clock value from the ini file
+                extClkValue = GetExtClkValueFromIni();
+                ExtClkStatusText.Text = extClkValue == 1 ? "On" : "Off";
+                ExtClkStatusIndicator.Fill = extClkValue == 1 ? Brushes.Green : Brushes.Red;
+
+                // Start elapsed time tracking
+                experimentStartTime = DateTime.Now;
+                isExperimentRunning = true;
+                elapsedTimer.Start();
+
+                // Update experiment status indicators
+                ExperimentStatusText.Text = "On";
+                ExperimentStatusIndicator.Fill = Brushes.Green;
+
+                // Initialize the experiment log
+                InitializeExperimentLog();
+
+                // Send a request to the server to start data acquisition
+                byte[] request = BitConverter.GetBytes((short)1);  // The request to start experiment is 1
+                await pipeClient.WriteAsync(request, 0, request.Length);      // Send the request
+
+                byte[] expDirBytes = System.Text.Encoding.ASCII.GetBytes(experimentLogDirectory);
+                await pipeClient.WriteAsync(expDirBytes, 0, expDirBytes.Length); // Send the experiment directory
+
+                isPaused = false; // Data updates can start
+                AppendMessage("Experiment Data Acquisition started.");
+                LogExperimentEvent("Experiment Data Acquisition started.");
+
+                // Start data updates
+                StartDataUpdates();
+                // Start motor position updates
+                StartMotorPositionUpdates();
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Failed to start experiment: {ex.Message}");
+            }
+        }
 
         private async void TerminateButton_Click(object sender, RoutedEventArgs e)
+        {
+            await TerminateExperimentAsync();
+        }
+
+        // Terminate the experiment
+        private async Task TerminateExperimentAsync()
         {
             try
             {
@@ -521,8 +542,16 @@ namespace Quantum_measurement_UI
                 pipeClient?.Dispose();
                 pipeClient = null;
 
-                AppendMessage("Experiment terminated.");
-                LogExperimentEvent("Experiment terminated.");
+                // Block until GageStreamThruGPU.exe process exits
+                if (gageStreamProcess != null && !gageStreamProcess.HasExited)
+                {
+                    await Task.Run(() => gageStreamProcess.WaitForExit()); // Wait in background thread
+                    gageStreamProcess.Dispose();
+                    gageStreamProcess = null;
+                }
+
+                AppendMessage("Experiment terminated and GageStreamThruGPU.exe has exited.");
+                LogExperimentEvent("Experiment terminated and GageStreamThruGPU.exe has exited.");
 
                 // Close the experiment log
                 if (experimentLogWriter != null)
@@ -532,13 +561,20 @@ namespace Quantum_measurement_UI
                     experimentLogWriter.Close();
                     experimentLogWriter = null;
                 }
+
+                // Reset experiment status indicators
+                isExperimentRunning = false;
+                elapsedTimer.Stop();
+                ExperimentStatusText.Text = "Off";
+                ExperimentStatusIndicator.Fill = Brushes.Red;
+
+                isPaused = true; // Pause data updates
             }
             catch (Exception ex)
             {
                 AppendMessage($"Error during termination: {ex.Message}");
             }
         }
-
 
         // Event handler for the Pause button click
         private void PauseButton_Click(object sender, RoutedEventArgs e)
@@ -636,8 +672,6 @@ namespace Quantum_measurement_UI
                     });
                     await Task.Delay(50);
                 }
-
-
 
                 AppendMessage($"Moved motor {motorNumber} to position {targetPosition}.");
                 LogExperimentEvent($"Moved motor {motorNumber} to position {targetPosition}.");
@@ -768,7 +802,6 @@ namespace Quantum_measurement_UI
             LogExperimentEvent($"Motor 2 current position: {currentPosition2}");
         }
 
-
         // Start the automatic continuous motion task
         private void StartAutomaticMotion(int motorNumber, int timePerMoveMs, int stepsPerMove, int totalNumberOfMoves)
         {
@@ -852,9 +885,6 @@ namespace Quantum_measurement_UI
                 {
                     Dispatcher.Invoke(() => AppendMessage($"Error during motion: {ex.Message}"));
                 }
-
-                
-                
             });
         }
 
@@ -947,8 +977,6 @@ namespace Quantum_measurement_UI
                 AppendMessage("Autobalance started.");
                 LogExperimentEvent("Autobalance started.");
                 autobalancer.Start(threshold, numberOfSegments);
-
-                
             }
             catch (Exception ex)
             {
@@ -1047,7 +1075,7 @@ namespace Quantum_measurement_UI
             }
         }
 
-        // update the elapsed time display
+        // Update the elapsed time display
         private void UpdateElapsedTime(object sender, EventArgs e)
         {
             if (isExperimentRunning)
@@ -1080,20 +1108,37 @@ namespace Quantum_measurement_UI
             return 0; // Default to 0 if not found
         }
 
-
+        public void StartGageStreamProcess()
+        {
+            try
+            {
+                gageStreamProcess = System.Diagnostics.Process.Start(@"GageStreamThruGPU.exe");
+                AppendMessage("GageStreamThruGPU.exe started.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Failed to start GageStreamThruGPU.exe: {ex.Message}");
+            }
+        }
 
         // Clean up resources when the window is closed
-        protected override void OnClosed(EventArgs e)
+        protected override async void OnClosed(EventArgs e)
         {
-
-            cancellationTokenSource.Cancel();
-            motorPositionCancellationTokenSource?.Cancel();
-            autobalancer?.Stop(); // Stop autobalance if running
-            pipeClient?.Dispose(); // Clean up the named pipe client
-            motorController.Shutdown(); // Properly shut down the motor controller when closing
-            StopContinuousMotion(); // Stop any ongoing motion
-            base.OnClosed(e);
+            try
+            {
+                await TerminateExperimentAsync(); // Safely terminate the experiment
+                motorController.Shutdown(); // Properly shut down the motor controller
+            }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it appropriately
+                AppendMessage($"Error during shutdown: {ex.Message}");
+            }
+            finally
+            {
+                base.OnClosed(e);
+            }
         }
-        
+   
     }
 }
