@@ -527,6 +527,9 @@ namespace Quantum_measurement_UI
                 motionCancellationTokenSource?.Cancel();         // Stop automatic motion if running
                 autobalancer?.Stop();                            // Stop autobalancer if running
 
+                // Wait briefly to allow the data update task to stop
+                await Task.Delay(500);
+
                 // Send a termination signal to the other program via the pipe
                 if (pipeClient?.IsConnected == true)
                 {
@@ -569,6 +572,32 @@ namespace Quantum_measurement_UI
                 ExperimentStatusIndicator.Fill = Brushes.Red;
 
                 isPaused = true; // Pause data updates
+
+                // clear all charts data
+                // Clear all charts data
+                Dispatcher.Invoke(() =>
+                {
+                    // Clear the SignalChart data
+                    ChannelAValues.Clear();
+                    ChannelBValues.Clear();
+
+                    // Clear the heatmap data
+                    heatValues.Clear();
+                    InitializeHeatValues(); // Re-initialize heatValues if necessary
+
+                    // Clear the PixelChart data
+                    PixelValues.Clear();
+
+                    // Clear Autobalance charts data
+                    autobalancer?.MotorPositionValues1.Clear();
+                    autobalancer?.MotorPositionValues2.Clear();
+                    autobalancer?.MetricValuesA.Clear();
+                    autobalancer?.MetricValuesB.Clear();
+
+                    // Reset UI elements if needed
+                    SelectedPixelValue.Text = "0.00";
+                    ElapsedTimeText.Text = "00:00:00";
+                });
             }
             catch (Exception ex)
             {
