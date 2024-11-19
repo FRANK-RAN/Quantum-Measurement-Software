@@ -11,20 +11,18 @@ namespace Quantum_measurement_UI
 {
     public class Autobalancer
     {
-        private readonly MotorController motorController;
-        private readonly Func<short[]> getDataBuffer;
-        private readonly Dispatcher dispatcher;
+        private readonly MotorController motorController;   // Reference to MotorController
+        private readonly Func<short[]> getDataBuffer;      // Function to get data buffer
+        private readonly Dispatcher dispatcher;            // Reference to Dispatcher for UI Thread operations
 
         // *** Added reference to MainWindow ***
-        private readonly MainWindow mainWindow;
+        private readonly MainWindow mainWindow;         // Reference to MainWindow
 
-        private CancellationTokenSource autobalanceCancellationTokenSource;
+        private CancellationTokenSource autobalanceCancellationTokenSource; // Cancellation token source for autobalance
 
-        public bool IsRunning { get; private set; } = false;
+        public bool IsRunning { get; private set; } = false;    // Flag to indicate if autobalance is running
 
-        // Chart data for both channels
-        public ChartValues<double> SignalValuesA { get; private set; }
-        public ChartValues<double> SignalValuesB { get; private set; }
+        // Chart data for motor positions and metrics
         public ChartValues<double> MotorPositionValues1 { get; private set; }
         public ChartValues<double> MotorPositionValues2 { get; private set; }
         public ChartValues<double> MetricValuesA { get; private set; }
@@ -38,18 +36,16 @@ namespace Quantum_measurement_UI
         // *** Modified constructor to accept MainWindow reference ***
         public Autobalancer(MotorController motorController, Func<short[]> getDataBuffer, Dispatcher dispatcher, MainWindow mainWindow)
         {
-            this.motorController = motorController;
-            this.getDataBuffer = getDataBuffer;
-            this.dispatcher = dispatcher;
+            this.motorController = motorController;     // Store reference to MotorController
+            this.getDataBuffer = getDataBuffer; // Function to get data buffer
+            this.dispatcher = dispatcher;   // Store reference to Dispatcher for UI Thread operations
             this.mainWindow = mainWindow; // Store reference to MainWindow**
 
             // Initialize chart values
-            SignalValuesA = new ChartValues<double>();
-            SignalValuesB = new ChartValues<double>();
-            MotorPositionValues1 = new ChartValues<double>();
-            MotorPositionValues2 = new ChartValues<double>();
-            MetricValuesA = new ChartValues<double>();
-            MetricValuesB = new ChartValues<double>();
+            MotorPositionValues1 = new ChartValues<double>();   // Motor position values for motor 1 for chart
+            MotorPositionValues2 = new ChartValues<double>();   // Motor position values for motor 2 for chart
+            MetricValuesA = new ChartValues<double>();          // Metric values for channel A for chart
+            MetricValuesB = new ChartValues<double>();          // Metric values for channel B for chart
         }
 
         public void Start(double threshold, int numsegments)
@@ -105,9 +101,7 @@ namespace Quantum_measurement_UI
             int motor2 = 2;
             int stepSize = 1; // Define initial step size for motor movement
 
-            double previousMetricA = double.MaxValue;
-            double previousMetricB = double.MaxValue;
-
+ 
             bool motor1completed = false;
             bool motor2completed = false;
 
@@ -122,25 +116,37 @@ namespace Quantum_measurement_UI
                 this.mainWindow.LogExperimentEvent($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
 
             }); 
-           
+
             int motor1Direction = 1; // Start by moving positive direction
             int motor2Direction = 1;
             int startIndex_A = 0; // Start index for data points being processed for metric calculation
             int startIndex_B = 0;
 
+            // Read data buffer
+            short[] currentDataBuffer = getDataBuffer();
+            startIndex_A = GetStartIndex(currentDataBuffer, 'A');           // Get start index for channel A where the waveform starts
+            startIndex_B = GetStartIndex(currentDataBuffer, 'B');           // Get start index for channel B where the waveform starts
+
+            // Compute metrics for channels A and B
+            currentMetricA = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'A', startIndex_A);  // Compute flatness metric for channel A
+            currentMetricB = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'B', startIndex_B);  // Compute flatness metric for channel B
+            double previousMetricA = currentMetricA;
+            double previousMetricB = currentMetricB;
+
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 // Read data buffer
-                short[] currentDataBuffer = getDataBuffer();
-                startIndex_A = GetStartIndex(currentDataBuffer, 'A');
-                startIndex_B = GetStartIndex(currentDataBuffer, 'B');
+                currentDataBuffer = getDataBuffer();
+                startIndex_A = GetStartIndex(currentDataBuffer, 'A');           // Get start index for channel A where the waveform starts
+                startIndex_B = GetStartIndex(currentDataBuffer, 'B');           // Get start index for channel B where the waveform starts
 
                 // Compute metrics for channels A and B
-                currentMetricA = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'A', startIndex_A);
-                currentMetricB = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'B', startIndex_B);
+                currentMetricA = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'A', startIndex_A);  // Compute flatness metric for channel A
+                currentMetricB = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'B', startIndex_B);  // Compute flatness metric for channel B
 
                 // Update charts
-                UpdateChartData(currentDataBuffer);
+                UpdateChartData();
 
                 // Check completion based on threshold
                 if (currentMetricA < threshold)
@@ -178,12 +184,15 @@ namespace Quantum_measurement_UI
                         // Metric decreased, keep moving in the same direction
                         previousMetricA = currentMetricA;
                     }
-                    else
+                    else  // Metric didn't decrease
                     {
                         // Metric didn't decrease, reverse direction and try once
                         motor1Direction *= -1;
 
-                        // Move motor1 in the opposite direction
+                        // Move motor back to previous position
+                        await MoveMotor(motor1, stepSize * motor1Direction, cancellationToken);
+
+                        // Move motor1 in the opposite direction for one step
                         didMetricDecrease = await MoveMotorAndCheckMetric(
                             motor1, stepSize * motor1Direction, 'A', numsegments, cancellationToken, previousMetricA);
 
@@ -223,6 +232,9 @@ namespace Quantum_measurement_UI
                         // Metric didn't decrease, reverse direction and try once
                         motor2Direction *= -1;
 
+                        // Move motor back to previous position
+                        await MoveMotor(motor2, stepSize * motor2Direction, cancellationToken);
+
                         // Move motor2 in the opposite direction
                         didMetricDecrease = await MoveMotorAndCheckMetric(
                             motor2, stepSize * motor2Direction, 'B', numsegments, cancellationToken, previousMetricB);
@@ -253,36 +265,11 @@ namespace Quantum_measurement_UI
             IsRunning = false;
         }
 
-        // Update chart data
-        private void UpdateChartData(short[] dataBuffer)
+        // Update chart data of motor positions and metrics
+        private void UpdateChartData()
         {
             dispatcher.Invoke(() =>
             {
-                int dataPointCount = dataBuffer.Length / 2;
-
-                // Initialize SignalValues if counts do not match
-                if (SignalValuesA.Count != dataPointCount)
-                {
-                    SignalValuesA.Clear();
-                    SignalValuesB.Clear();
-
-                    for (int i = 0; i < dataPointCount; i++)
-                    {
-                        SignalValuesA.Add(0);
-                        SignalValuesB.Add(0);
-                    }
-                }
-
-                // Update SignalValues for both channels in-place
-                for (int i = 0; i < dataPointCount; i++)
-                {
-                    double valueA = dataBuffer[i * 2] / 32768 * 240;
-                    double valueB = dataBuffer[i * 2 + 1] / 32768 * 240;
-
-                    SignalValuesA[i] = valueA;
-                    SignalValuesB[i] = valueB;
-                }
-
                 // Update Motor Position Values
                 MotorPositionValues1.Add(currentMotor1Position);
                 MotorPositionValues2.Add(currentMotor2Position);
@@ -390,6 +377,7 @@ namespace Quantum_measurement_UI
             }
         }
 
+        // aysnc method to move motor and check if metric decreases 
         private async Task<bool> MoveMotorAndCheckMetric(
             int motorNumber,
             int stepSize,
