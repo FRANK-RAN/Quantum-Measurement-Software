@@ -954,7 +954,7 @@ namespace Quantum_measurement_UI
 
                 isPaused = true; // Pause data updates
 
-                // Clear all charts data in the UI
+                // Clear all charts data in the UI Thread
                 Dispatcher.Invoke(() =>
                 {
                     // Clear the SignalChart data
