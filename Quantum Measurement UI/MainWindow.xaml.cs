@@ -2,13 +2,9 @@
 using LiveCharts.Defaults;
 using LiveCharts.Wpf;
 using MotorControl;
-using System;
 using System.IO.Pipes;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Controls;
 using System.IO;
 using System.Windows.Threading;
 using System.Diagnostics;
@@ -28,7 +24,7 @@ namespace Quantum_measurement_UI
 
         // For configuration file and experiment log
         private const string IniFilePath = @"StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
-        private const string resultsBaseDirectory = @"C:\Users\jr151\source\repos\Quantum Measurement UI\results";   // Base directory for storing experiment logs
+        private const string resultsBaseDirectory = @"C:\Users\jr151\source\repos\Quantum Measurement UI\results";   // Base directory for storing experiment logs, ## can be modified for different users
 
         #endregion
 
@@ -188,12 +184,12 @@ namespace Quantum_measurement_UI
             HeatSeries.Values = heatValues; // Set once         // heatValues binded to the HeatSeries
 
             // Initialize the HeatPoint values
-            for (int x = 0; x < matrixSize; x++)
+            for (int y = 0; y < matrixSize; y++)        // y is the row index
             {
-                for (int y = 0; y < matrixSize; y++)
+                for (int x = 0; x < matrixSize; x++)    // x is the column index
                 {
                     // Initially set to zero or any default value
-                    heatValues.Add(new HeatPoint(x, y, 0.0));
+                    heatValues.Add(new HeatPoint(x, y, 0.0)); // Add a new HeatPoint to the heatValues in row-major order
                 }
             }
         }
@@ -486,7 +482,7 @@ namespace Quantum_measurement_UI
                 selectedRow = row;
                 selectedColumn = col;
 
-                int index = selectedColumn * 8 + selectedRow; // Swapped row and column
+                int index = selectedRow * 8 + selectedColumn; // Corrected: row-major order
                 double selectedValue = corrMatrixBuffer[index];
 
                 // Display the selected value
@@ -500,6 +496,7 @@ namespace Quantum_measurement_UI
                 AppendMessage($"Error: {ex.Message}");
             }
         }
+
 
         /// <summary>
         /// Event handler for the Start Motion button click.
@@ -795,9 +792,9 @@ namespace Quantum_measurement_UI
 
             if (heatValues.Count == 0)
             {
-                for (int x = 0; x < matrixSize; x++)
+                for (int y = 0; y < matrixSize; y++) // y is the row index
                 {
-                    for (int y = 0; y < matrixSize; y++)
+                    for (int x = 0; x < matrixSize; x++) // x is the column index
                     {
                         // Initially set to zero or any default value
                         heatValues.Add(new HeatPoint(x, y, 0.0));
@@ -806,11 +803,11 @@ namespace Quantum_measurement_UI
             }
 
             // Update the value of each HeatPoint
-            for (int x = 0; x < matrixSize; x++)
+            for (int y = 0; y < matrixSize; y++)    // iterate over rows
             {
-                for (int y = 0; y < matrixSize; y++)
+                for (int x = 0; x < matrixSize; x++)  // iterate over columns
                 {
-                    int index = y * matrixSize + x; // Swapped x and y
+                    int index = y * matrixSize + x; // Index in row-major order
 
                     // Update the HeatPoint with the new value
                     heatValues[index].Weight = Math.Round(corrMatrixBuffer[index], 2);
@@ -818,12 +815,13 @@ namespace Quantum_measurement_UI
             }
         }
 
+
         /// <summary>
         /// Updates the pixel chart with the selected pixel value over time.
         /// </summary>
         private void UpdatePixelChart()
         {
-            int index = selectedColumn * 8 + selectedRow; // Swapped row and column
+            int index = selectedRow * 8 + selectedColumn;       // Row major order
             double selectedValue = corrMatrixBuffer[index];
 
             // Update the SelectedPixelValue TextBox
