@@ -201,7 +201,7 @@ namespace Quantum_measurement_UI
         {
             if (experimentLogWriter != null)
             {
-                string logEntry = $"{DateTime.Now:HH:mm:ss}: {message}";
+                string logEntry = $"{DateTime.Now:HH:mm:ss.fff}: {message}";
                 experimentLogWriter.WriteLine(logEntry);
                 experimentLogWriter.Flush(); // Ensure immediate write to the file
             }
@@ -212,7 +212,7 @@ namespace Quantum_measurement_UI
         {
             Dispatcher.Invoke(() =>
             {
-                SharedMessageLog.AppendText($"{DateTime.Now:HH:mm:ss}: {message}\n");
+                SharedMessageLog.AppendText($"{DateTime.Now:HH:mm:ss.fff}: {message}\n");
                 SharedMessageLog.ScrollToEnd();
             });
         }

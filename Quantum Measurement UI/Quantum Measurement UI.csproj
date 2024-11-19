@@ -7,11 +7,16 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Images\quantmeasure.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="Images\Rice-EQUAL-Lab-Logo.png" />
     <None Remove="Images\rice-university-logo.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Images\quantmeasure.ico" />
   </ItemGroup>
 
   <ItemGroup>
