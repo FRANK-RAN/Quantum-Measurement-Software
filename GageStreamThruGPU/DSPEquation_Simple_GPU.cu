@@ -322,7 +322,7 @@ extern "C" cudaError_t ComputeG2CorrelationGPU(const __int64 u32LoopCount,      
 	checkCuda(cudaDeviceSynchronize(), "Kernel execution failed");
 
 	// Write results to the Analysis file
-	writeResultsToFile(AnalysisFile, binFile, u32LoopCount, h_odata, corrMatrixSize);
+	writeResultsToFile(AnalysisFile, binFile, u32LoopCount, h_odata, corrMatrixSize * corrMatrixSize);
 
 	return cudaStatus;
 }

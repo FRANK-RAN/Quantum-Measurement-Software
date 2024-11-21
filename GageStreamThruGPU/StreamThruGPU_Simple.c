@@ -1137,7 +1137,7 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 	}
 
 	// Open the binary file containing the correlation matrices
-	binFile = fopen(cmBinPath, "w");
+	binFile = fopen(cmBinPath, "ab");
 	if (binFile == NULL) {
 		fprintf(stderr, "Unable to open cm.bin for reading.\n");
 		ExitThread(1);
