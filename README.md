@@ -18,12 +18,6 @@ See QuantaMeasure in action! Watch the live demonstration  to explore the key fe
   - [Quantum Measurement UI](#quantum-measurement-ui)
   - [GageStreamThruGPU](#gagestreamthrugpu)
   - [Other Projects [MotorMove]](#3-other-projects-motormove)
-- [CUDA Programming for Data Processing](#cuda-programming-for-data-processing)
-  - [Mathematical Definitions Behind Cross-Correlation](#mathematical-definitions-behind-cross-correlation)
-  - [CUDA Programming](#cuda-programming)
-    - [CUDA Programming Basics](#cuda-programming-basics)
-    - [CUDA Program Design for Cross-Correlation Matrices](#cuda-program-design-for-cross-correlation-matrices)
-    - [Recommended Learning Resources](#recommended-learning-resources)
 - [Software Development](#software-development)
   - [Main Components](#main-components)
   - [UI Components](#ui-components)
@@ -34,6 +28,12 @@ See QuantaMeasure in action! Watch the live demonstration  to explore the key fe
   - [Asynchronous Programming](#asynchronous-programming)
 - [Data Acquisition and Processing System](#data-acquisition-and-processing-system)
   - [System Workflow](#system-workflow)
+- [CUDA Programming for Data Processing](#cuda-programming-for-data-processing)
+  - [Mathematical Definitions Behind Cross-Correlation](#mathematical-definitions-behind-cross-correlation)
+  - [CUDA Programming](#cuda-programming)
+    - [CUDA Programming Basics](#cuda-programming-basics)
+    - [CUDA Program Design for Cross-Correlation Matrices](#cuda-program-design-for-cross-correlation-matrices)
+    - [Recommended Learning Resources](#recommended-learning-resources)
 - [Project and Process Connections](#project-and-process-connections)
   - [Project Reference](#project-reference)
   - [Process Communication via Named Pipe](#process-communication-via-named-pipe)
@@ -103,105 +103,7 @@ This project is standalone with its own environment setup, allowing seamless int
 
 
 
-# CUDA Programming for Data Processing
 
-This section introduces CUDA programming for computing the cross-correlation matrix. The discussion begins with the mathematical foundations of cross-correlation computation, followed by detailed explanations of the CUDA programming aspects and performance analyses for CUDA optimizations.
-
-## Mathematical Definitions Behind Cross-Correlation
-
-For each batch of data, the data is segmented into smaller segments, with each segment consisting of 32 data points from two channels—Channel A and Channel B. For each segment, one cross-correlation matrix is computed, and then all computed cross-correlation matrices are averaged to obtain the overall cross-correlation matrix for the batch.
-
-A single segment of data is arranged as:
-
-$$
-[A_1, B_1, A_2, B_2, \ldots, A_{16}, B_{16}]
-$$
-
-where \( A \) and \( B \) denote the channels. *Figure 2: Signals* depicts the signals from the digitizer, illustrating that each segment of data consists of two channels, and for each channel, one segment captures two pulses of waves. The cross-correlation is computed between the two channels of signals within one segment.
-
-![Signals](./Images/signals.png)
-*Figure 2: Signals*
-
-The cross-correlation between the two channels within one segment is defined as:
-
-$$
-C_{i,j} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right)
-$$
-
-where \( i, j \) range from 1 to 8. The matrix is visualized below in *Figure 3: Cross-Correlation Matrix*.
-
-![Cross-Correlation Matrix](./Images/correlationMatrixHeatMap.png)
-*Figure 3: Cross-Correlation Matrix*
-
-After computing all cross-correlation matrices for one batch of data, the matrices are averaged to obtain the mean cross-correlation matrix:
-
-
-<div align="center">
-  <img src="./Images/sumEqu.svg" alt="Mean Cross-Correlation Matrix" />
-</div>
-
-
-where \( N \) is the total number of segments.
-
-For one batch of data—for example, with 1 million segments—the final result is a mean cross-correlation matrix consisting of 64 elements.
-
-Note: [Correlation_Matrix_Computation.pdf](./GageStreamThruGPU/Correlation_Matrix_Computation_Math.pdf) gives a detailed mathematical formulation for computing the mean cross-correlation matrix here.
-
-
-## CUDA Programming
-
-The CUDA programming was used to compute the mean cross correlation matrix for batchs of data. CUDA programming used will be introdcued in the section.
-
-The basics of CUDA programming are introduced first, followed by the design of the CUDA program at the kernel level and a discussion of memory optimization techniques. Finally, recommended learning resources are introcued to speed learning curve.
-
-
-### CUDA Programming Basics
-
-CUDA is a parallel programming platform developed by NVIDIA. It provides extensions to C++ that allow developers to write code for high-performance computing on NVIDIA GPUs. CUDA compiles these programs into instructions that run on the GPU.
-
-#### Key Concepts:
-1. **Kernels**: Functions that define tasks to be executed on the GPU. Kernels are launched with multiple threads working in parallel on independent data (usually).
-2. **Threads**: In CUDA, threads perform the same task on different pieces of data. CUDA is best suited for tasks where computations on data are independent, such as computing cross-correlation matrices.
-3. **Heterogeneous Computing**: The GPU operates as a separate computing unit, connected to the host system via high-speed connections like PCIe. To perform computations, data must be transferred from the host system (CPU/RAM) to GPU memory.
-
-#### Optimization Focus:
-- **Thread Design**: Effective design of threads to maximize parallelism.
-- **Memory Management**: Minimizing the overhead of memory transfers between the host and the GPU. This includes optimizing the use of GPU memory hierarchy and data placement.
-
-### CUDA Program Design for Cross-Correlation Matrices
-
-The CUDA program is located in: [DSPEquation_Simple_GPU.cu](./GageStreamThruGPU/DSPEquation_Simple_GPU.cu)
-
-
-#### Kernel Design:
-To compute the mean cross-correlation matrix for a batch of data, two steps are performed:
-1. **Compute Cross-Correlation Matrices**: 
-   - **Kernel Name**: `demodulationCrossCorrelation`
-   - **Thread Mapping**: Each thread computes a single element of the cross-correlation matrix for one segment.
-   - **Parallelism**: A total of `#segments * 64` threads are launched, where 64 is the size of the correlation matrix. This high number of threads helps achieve *latency hiding* (minimizing idle time).
-
-2. **Average the Matrices**:
-   - **Kernel Name**: `averageCrossCorrelation`
-   - **Thread Mapping**: Threads reduce the results by averaging the computed matrices across segments.
-
-#### Memory Management:
-GPU memory management plays a critical role in performance optimization. CUDA offers a hierarchical memory model:
-- **On-Chip Memory**: L1 and L2 cache, closer to compute cores, providing faster access.
-- **Off-Chip Device Memory**: Slower but has larger capacity.
-- **Host Memory**: RAM on the CPU side, connected to the GPU via PCIe.
-
-For this project, memory optimizations include:
-1. **Mapped Memory**:
-   - Mapped memory allows the GPU and CPU to share a virtual address space, enabling direct data transfers between host and GPU memory without storing data in off-chip device memory.
-   - This approach minimizes latency, as data is transferred directly to the compute cores.
-   - Refer to NVIDIA's *CUDA C++ Programming Guide* for more details.
-
-2. **Page Locked Memory**:
-   - Memory on computer RAM is page locked to prevent the memory swapped out of RAM to disk, to make memory transfer between compyter and GPU stable.
-
-### Recommended Learning Resources:
-- [NVIDIA CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
-- [CUDA Training Series](https://www.olcf.ornl.gov/cuda-training-series/)
 
 
 
@@ -340,6 +242,105 @@ As the PC/Server receives the data in the RAM buffer, it sends the data to the G
 
 ---
 
+# CUDA Programming for Data Processing
+
+This section introduces CUDA programming for computing the cross-correlation matrix. The discussion begins with the mathematical foundations of cross-correlation computation, followed by detailed explanations of the CUDA programming aspects and performance analyses for CUDA optimizations.
+
+## Mathematical Definitions Behind Cross-Correlation
+
+For each batch of data, the data is segmented into smaller segments, with each segment consisting of 32 data points from two channels—Channel A and Channel B. For each segment, one cross-correlation matrix is computed, and then all computed cross-correlation matrices are averaged to obtain the overall cross-correlation matrix for the batch.
+
+A single segment of data is arranged as:
+
+$$
+[A_1, B_1, A_2, B_2, \ldots, A_{16}, B_{16}]
+$$
+
+where \( A \) and \( B \) denote the channels. *Figure 2: Signals* depicts the signals from the digitizer, illustrating that each segment of data consists of two channels, and for each channel, one segment captures two pulses of waves. The cross-correlation is computed between the two channels of signals within one segment.
+
+![Signals](./Images/signals.png)
+*Figure 2: Signals*
+
+The cross-correlation between the two channels within one segment is defined as:
+
+$$
+C_{i,j} = \left( A_i - A_{i+8} \right) \times \left( B_j - B_{j+8} \right)
+$$
+
+where \( i, j \) range from 1 to 8. The matrix is visualized below in *Figure 3: Cross-Correlation Matrix*.
+
+![Cross-Correlation Matrix](./Images/correlationMatrixHeatMap.png)
+*Figure 3: Cross-Correlation Matrix*
+
+After computing all cross-correlation matrices for one batch of data, the matrices are averaged to obtain the mean cross-correlation matrix:
+
+
+<div align="center">
+  <img src="./Images/sumEqu.svg" alt="Mean Cross-Correlation Matrix" />
+</div>
+
+
+where \( N \) is the total number of segments.
+
+For one batch of data—for example, with 1 million segments—the final result is a mean cross-correlation matrix consisting of 64 elements.
+
+Note: [Correlation_Matrix_Computation.pdf](./GageStreamThruGPU/Correlation_Matrix_Computation_Math.pdf) gives a detailed mathematical formulation for computing the mean cross-correlation matrix here.
+
+
+## CUDA Programming
+
+The CUDA programming was used to compute the mean cross correlation matrix for batchs of data. CUDA programming used will be introdcued in the section.
+
+The basics of CUDA programming are introduced first, followed by the design of the CUDA program at the kernel level and a discussion of memory optimization techniques. Finally, recommended learning resources are introcued to speed learning curve.
+
+
+### CUDA Programming Basics
+
+CUDA is a parallel programming platform developed by NVIDIA. It provides extensions to C++ that allow developers to write code for high-performance computing on NVIDIA GPUs. CUDA compiles these programs into instructions that run on the GPU.
+
+#### Key Concepts:
+1. **Kernels**: Functions that define tasks to be executed on the GPU. Kernels are launched with multiple threads working in parallel on independent data (usually).
+2. **Threads**: In CUDA, threads perform the same task on different pieces of data. CUDA is best suited for tasks where computations on data are independent, such as computing cross-correlation matrices.
+3. **Heterogeneous Computing**: The GPU operates as a separate computing unit, connected to the host system via high-speed connections like PCIe. To perform computations, data must be transferred from the host system (CPU/RAM) to GPU memory.
+
+#### Optimization Focus:
+- **Thread Design**: Effective design of threads to maximize parallelism.
+- **Memory Management**: Minimizing the overhead of memory transfers between the host and the GPU. This includes optimizing the use of GPU memory hierarchy and data placement.
+
+### CUDA Program Design for Cross-Correlation Matrices
+
+The CUDA program is located in: [DSPEquation_Simple_GPU.cu](./GageStreamThruGPU/DSPEquation_Simple_GPU.cu)
+
+
+#### Kernel Design:
+To compute the mean cross-correlation matrix for a batch of data, two steps are performed:
+1. **Compute Cross-Correlation Matrices**: 
+   - **Kernel Name**: `demodulationCrossCorrelation`
+   - **Thread Mapping**: Each thread computes a single element of the cross-correlation matrix for one segment.
+   - **Parallelism**: A total of `#segments * 64` threads are launched, where 64 is the size of the correlation matrix. This high number of threads helps achieve *latency hiding* (minimizing idle time).
+
+2. **Average the Matrices**:
+   - **Kernel Name**: `averageCrossCorrelation`
+   - **Thread Mapping**: Threads reduce the results by averaging the computed matrices across segments.
+
+#### Memory Management:
+GPU memory management plays a critical role in performance optimization. CUDA offers a hierarchical memory model:
+- **On-Chip Memory**: L1 and L2 cache, closer to compute cores, providing faster access.
+- **Off-Chip Device Memory**: Slower but has larger capacity.
+- **Host Memory**: RAM on the CPU side, connected to the GPU via PCIe.
+
+For this project, memory optimizations include:
+1. **Mapped Memory**:
+   - Mapped memory allows the GPU and CPU to share a virtual address space, enabling direct data transfers between host and GPU memory without storing data in off-chip device memory.
+   - This approach minimizes latency, as data is transferred directly to the compute cores.
+   - Refer to NVIDIA's *CUDA C++ Programming Guide* for more details.
+
+2. **Page Locked Memory**:
+   - Memory on computer RAM is page locked to prevent the memory swapped out of RAM to disk, to make memory transfer between compyter and GPU stable.
+
+### Recommended Learning Resources:
+- [NVIDIA CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
+- [CUDA Training Series](https://www.olcf.ornl.gov/cuda-training-series/)
 
 # Project and Process Connections
 
