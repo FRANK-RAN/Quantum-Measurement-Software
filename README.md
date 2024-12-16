@@ -7,9 +7,9 @@ Welcome to the official documentation for **QuantaMeasure**, a software solution
 This documentation is intended for scientists with a foundational knowledge of computer science, offering guidance on understanding the codebase, as well as providing instructions and insights for maintaining and updating the software’s functionalities.
 
 ## **Live Demo**
-See QuantaMeasure in action! Watch the [live demonstration](./images/QM-software.gif)   to explore the key features and workflows.
+See QuantaMeasure in action! Watch the live demonstration  to explore the key features and workflows.
 
-![Demo of the Project](./images/QM-software.gif)  
+![Demo of the Project](./Images/QM-software.gif)  
 
 # Table of Contents
 
