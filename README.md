@@ -9,7 +9,7 @@ This documentation is intended for scientists with a foundational knowledge of c
 ## **Live Demo**
 See QuantaMeasure in action! Watch the live demonstration to explore the key features and workflows.
 
-![App Screenshot](./images/QM-software.gif)  
+![alt-text](./images/QM-software.gif)  
 
 # Table of Contents
 
