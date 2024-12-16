@@ -1,12 +1,15 @@
 # QuantaMeasure Documentation
 
-## Introduction
+# Introduction
 
 Welcome to the official documentation for **QuantaMeasure**, a software solution designed to provide scientists with efficient tools for real-time viewing and analysis of measured quantum signals.
 
 This documentation is intended for scientists with a foundational knowledge of computer science, offering guidance on understanding the codebase, as well as providing instructions and insights for maintaining and updating the software’s functionalities.
 
-The documentation is structured as follows:
+## **Live Demo**
+See QuantaMeasure in action! Watch the live demonstration to explore the key features and workflows.
+
+![App Screenshot](./images/QM-software.gif)  
 
 # Table of Contents
 
@@ -36,6 +39,7 @@ The documentation is structured as follows:
   - [Process Communication via Named Pipe](#process-communication-via-named-pipe)
     - [Communication Logic](#communication-logic)
     - [Efficiency and Extensibility](#efficiency-and-extensibility)
+
 
 
 # Documentation Roadmap
