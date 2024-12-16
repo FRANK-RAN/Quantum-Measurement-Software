@@ -8,8 +8,37 @@ This documentation is intended for scientists with a foundational knowledge of c
 
 The documentation is structured as follows:
 
-
 # Table of Contents
+
+- [Introduction](#introduction)
+- [Overview](#overview)
+  - [Quantum Measurement UI](#quantum-measurement-ui)
+  - [GageStreamThruGPU](#gagestreamthrugpu)
+  - [Other Projects [MotorMove]](#3-other-projects-motormove)
+- [CUDA Programming for Data Processing](#cuda-programming-for-data-processing)
+  - [Mathematical Definitions Behind Cross-Correlation](#mathematical-definitions-behind-cross-correlation)
+  - [CUDA Programming](#cuda-programming)
+    - [CUDA Programming Basics](#cuda-programming-basics)
+    - [CUDA Program Design for Cross-Correlation Matrices](#cuda-program-design-for-cross-correlation-matrices)
+    - [Recommended Learning Resources](#recommended-learning-resources)
+- [Software Development](#software-development)
+  - [Main Components](#main-components)
+  - [UI Components](#ui-components)
+  - [Workflow](#workflow)
+  - [Data Update Logic](#data-update-logic)
+  - [UI Thread and Worker Threads](#ui-thread-and-worker-threads)
+  - [Event Handlers for Buttons](#event-handlers-for-buttons)
+  - [Asynchronous Programming](#asynchronous-programming)
+- [Data Acquisition and Processing System](#data-acquisition-and-processing-system)
+  - [System Workflow](#system-workflow)
+- [Project and Process Connections](#project-and-process-connections)
+  - [Project Reference](#project-reference)
+  - [Process Communication via Named Pipe](#process-communication-via-named-pipe)
+    - [Communication Logic](#communication-logic)
+    - [Efficiency and Extensibility](#efficiency-and-extensibility)
+
+
+# Documentation Roadmap
 
 1. [Overview](#overview): Introduces the entire code structure, covering the frontend UI, the data acquisition and processing backend, and how these components connect efficiently.
 2. [Software Development](#software-development): Explains the development of the Windows Presentation Foundation (WPF) application, including environment setup, component integration, and the visualization libraries used.
@@ -69,6 +98,7 @@ The codebase solution also supports integrating additional components, such as A
 This project is standalone with its own environment setup, allowing seamless integration. By using Visual Studio’s **project reference** feature, we can directly access classes and functions defined in this project from other parts of the solution. This approach eliminates the need to modify the environment of any project that references it. Details on how project references work will be covered in the **Project and Process Connections** section.
 
 
+
 # CUDA Programming for Data Processing
 
 This section introduces CUDA programming for computing the cross-correlation matrix. The discussion begins with the mathematical foundations of cross-correlation computation, followed by detailed explanations of the CUDA programming aspects and performance analyses for CUDA optimizations.
@@ -109,6 +139,9 @@ where \( N \) is the total number of segments.
 
 For one batch of data—for example, with 1 million segments—the final result is a mean cross-correlation matrix consisting of 64 elements.
 
+Note: [Correlation_Matrix_Computation.pdf](./GageStreamThruGPU/Correlation_Matrix_Computation_Math.pdf) gives a detailed mathematical formulation for computing the mean cross-correlation matrix here.
+
+
 ## CUDA Programming
 
 The CUDA programming was used to compute the mean cross correlation matrix for batchs of data. CUDA programming used will be introdcued in the section.
@@ -131,7 +164,7 @@ CUDA is a parallel programming platform developed by NVIDIA. It provides extensi
 
 ### CUDA Program Design for Cross-Correlation Matrices
 
-The CUDA program is located in: /GageStreamThruGPU/DSPEquation_Simple_GPU.cu
+The CUDA program is located in: [DSPEquation_Simple_GPU.cu](./GageStreamThruGPU/DSPEquation_Simple_GPU.cu)
 
 
 #### Kernel Design:
@@ -157,13 +190,231 @@ For this project, memory optimizations include:
    - This approach minimizes latency, as data is transferred directly to the compute cores.
    - Refer to NVIDIA's *CUDA C++ Programming Guide* for more details.
 
-2. **Batch-Level Optimization**:
-   - Each batch of data is used only once, so mapped memory bypasses the need for transferring data to GPU device memory, reducing overhead.
+2. **Page Locked Memory**:
+   - Memory on computer RAM is page locked to prevent the memory swapped out of RAM to disk, to make memory transfer between compyter and GPU stable.
 
 ### Recommended Learning Resources:
-- **CUDA C++ Programming Guide** by NVIDIA
-- Online courses on GPU computing 
+- [NVIDIA CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
+- [CUDA Training Series](https://www.olcf.ornl.gov/cuda-training-series/)
 
 
 
+# Software Development
 
+We use Visual Studio 2022 as the Integrated Development Environment (IDE) to develop the Windows Foundation Application in C#. The software development code resides in the Quantum Measurement UI project.
+
+The key components of the code are:
+
+- **MainWindow.xaml**: Defines the layout of the application, including the charts, buttons, and overall graphical user interface (GUI).
+- **MainWindow.xaml.cs**: Implements the backend logic of the application and links the backend to the frontend UI defined in MainWindow.xaml.
+
+### Main Components
+
+1. **MainWindow.xaml**:
+   - This file specifies the structure and layout of the UI elements, such as buttons, tabs, charts, and other GUI components.
+   - The application consists of two primary tabs/pages, as defined in this file.
+
+2. **MainWindow.xaml.cs**:
+   - This file contains the logic to handle events, manage data, and update the UI components dynamically.
+   - It acts as a bridge between the backend and the UI, binding data and logic to the elements defined in MainWindow.xaml.
+
+In C#, which is an object-oriented programming language, everything is encapsulated within classes. The `MainWindow` class is directly bound to `MainWindow.xaml`, so UI components defined in `MainWindow.xaml` can be accessed and manipulated in the `MainWindow` class.
+
+---
+
+## Workflow
+
+The application operates on a UI thread, which is responsible for rendering the UI components. The UI thread automatically updates the visible elements. In addition to the UI thread, worker threads handle background tasks such as data updates and computations to ensure smooth performance.
+
+### Connection to External Process
+
+The application integrates with the **GageStreamThruGPU** process, which controls the GaGe Digitizer for data acquisition and utilizes the GPU for data processing. This external process periodically sends data, including signal streams and cross-correlation matrices, to the UI application. The received data is used to update the charts and other UI elements in real time.
+
+---
+
+## UI Components
+
+We use the **LiveCharts** library to display charts in the application. After initializing LiveCharts, the chart UI updates automatically based on the underlying data. For instance:
+
+- **LineSeries** objects represent the chart data in the code.
+- The background logic updates the values of these objects, and the changes are reflected on the UI automatically.
+
+---
+
+## Data Update Logic
+
+Two global buffers, `dataBuffer` and `corrMatrixBuffer`, store the signal data and cross-correlation matrix data, respectively. The application periodically receives data from the **GageStreamThruGPU** process and updates these buffers.
+
+### Asynchronous Data Updates
+
+The `UpdateData` asynchronous task is responsible for periodically updating the chart values using data from the `dataBuffer` and `corrMatrixBuffer`. This ensures the UI reflects the latest data without blocking other operations.
+
+Example:
+
+```csharp
+Task.Run(() => UpdateData(cancellationTokenSource.Token));
+```
+
+Here, `UpdateData` runs on a thread pool to prevent overloading the UI thread.
+
+---
+
+## UI Thread and Worker Threads
+
+- **UI Thread**:
+  - Handles rendering the UI components and initial application setup.
+  - Ensures a responsive and smooth user experience.
+
+- **Worker Threads**:
+  - Perform background computations and data updates.
+  - Prevent the UI thread from becoming overloaded, ensuring the application remains responsive.
+
+Using `Task.Run()`, we delegate background tasks to worker threads. This allows the application to handle intensive operations asynchronously while keeping the UI responsive.
+
+---
+
+## Event Handlers for Buttons
+
+The application includes several buttons connected to event handlers defined in `MainWindow.xaml.cs`. The connection between a button and its event handler is explicitly declared in `MainWindow.xaml`. For example:
+
+```xml
+<Button Content="Start" Click="StartMotionButton_Click" />
+```
+
+The `Click="StartMotionButton_Click"` specifies that the `StartMotionButton_Click` method in `MainWindow.xaml.cs` will execute when the button is clicked.
+
+---
+
+## Asynchronous Programming
+
+Asynchronous programming is widely used in the application. Methods marked with `async` allow the application to initiate tasks without waiting for their completion. This ensures non-blocking execution and a smoother user experience.
+
+For example:
+
+```csharp
+async Task SomeFunctionAsync()
+{
+    await Task.Delay(1000); // Simulate some work
+    // Continue execution without blocking
+}
+```
+
+In the context of the application, asynchronous programming is essential for handling data updates and background computations without disrupting the UI rendering process.
+
+---
+
+
+# Data Acquisition and Processing System
+
+The system workflow is depicted in *Figure 4*. The computer is connected to the GaGe Digitizer for data acquisition and the GPU for data processing. The program controlling Data Acquisition and Data Processing is in [StreamThruGPU_Simple.c](./GageStreamThruGPU/StreamThruGPU_Simple.c).
+
+The Data Acquisition and Processing System operates as a single process and sends the data and computed results to the software process.
+
+![System Overview](./Images/workflow.png)  
+*Figure 4: System Workflow*
+
+**Note:**  
+The code is built based on the official code from the GaGe Digitizer company. Within the code, the digitizer is controlled by APIs provided by GaGe. API functions can be reviewed in the documentation of GaGe CsAPI.
+
+---
+
+## System Workflow
+
+Within the program, the GaGe digitizer is initialized and configured using an [INI file](./GageStreamThruGPU/StreamThruGPU.ini) (configuration file). The configuration file sets up digitizer parameters such as the sampling rate, internal or external clocking, and GPU computing settings in the `ExpConfig` section.
+
+In the computer's RAM, two buffers are allocated and pinned to store data from the digitizer. The digitizer transfers one batch of data (e.g., 64 MB) to one buffer in the computer's RAM at a time. These two buffers work in tandem to ensure efficient operation:
+
+1. While one buffer receives data from the digitizer, the other buffer sends previously received data to the GPU for processing.
+2. In the next step, the roles of the buffers swap: the buffer that just finished processing data begins receiving new data, while the other buffer processes its previously received data.
+
+This alternating and concurrent operation ensures continuous data flow and processing, effectively doubling the system's speed.
+
+
+As the PC/Server receives the data in the RAM buffer, it sends the data to the GPU for processing. In [StreamThruGPU_Simple.c](./GageStreamThruGPU/StreamThruGPU_Simple.c), the program directly calls the function defined in the CUDA file `ComputeCrossCorrelationGPU`.
+
+---
+
+
+# Project and Process Connections
+
+
+In Visual Studio, our solution currently contains three projects: **Quantum Measurement UI**, **GageStreamThruGPU**, and **MotorMove**. The **MotorMove** project is responsible for controlling the motor controller.
+Projects can be connected via proejct reference or named pipes.
+
+
+## Project Reference
+
+Both **Quantum Measurement UI** and **MotorMove** are C# projects. Since they share the same programming language, we can utilize Visual Studio's project reference feature to connect them. 
+
+For example, in the **Quantum Measurement UI** project, if we want to use classes from **MotorMove**, we can do the following:
+
+1. Right-click on the **Quantum Measurement UI** project in the solution explorer.
+2. Select **Add** > **Project Reference**.
+3. Choose the **MotorMove** project to add as a reference.
+4. Build the solution, and you can directly use the classes and APIs from **MotorMove** in your code.
+
+This feature is particularly convenient because many vendors provide pre-built .NET C# projects. By integrating these projects into the solution and adding project references, we can seamlessly use their classes and APIs without additional setup.
+
+**Note:**  
+Project references only work for projects using the same language. For instance, a C# project cannot reference a C++ project.
+
+---
+
+## Process Communication via Named Pipe
+
+For projects or processes using different programming languages, such as **GageStreamThruGPU** and **Quantum Measurement UI**, we use **named pipes** to establish communication.
+
+### What is a Named Pipe?
+
+A named pipe is a mechanism that provides inter-process communication (IPC). It operates as a **FIFO (First In, First Out)** buffer with a specific name. Named pipes allow a server and clients to communicate by writing to and reading from this shared buffer.
+
+For example:
+- A client writes a request into the pipe.
+- The server reads the request, processes it, and sends a response back.
+
+Once a request is read, it is removed from the pipe.
+
+---
+
+### Communication Logic
+
+1. **Server**:
+   - The server creates the named pipe and waits for the client to connect.
+   - Periodically checks for client requests (e.g., during data acquisition and processing steps).
+   - Responds to client requests, such as sending data.
+
+   In the server, we implement these functionalities in [`pipe.cpp`](./GageStreamThruGPU/pipe.cpp):
+   - **`createAndConnectPipe`**: Used to create the pipe and wait for client connections.
+   - **`handleClientRequests`**: Used to check for client requests and respond accordingly (e.g., sending data).
+
+2. **Client**:
+   - The client creates a named pipe with the same name as the server's and connects to it.
+   - Sends requests by writing to the pipe and waits for the server's response.
+
+   Example client code:
+   ```csharp
+   pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
+   pipeClient.Connect();
+
+   // Send a request to the server
+   byte[] request = BitConverter.GetBytes((short)2);
+   await pipeClient.WriteAsync(request, 0, request.Length);
+
+   // Receive data from the server
+   byte[] dataBufferBytes = new byte[DataPoints * sizeof(short)];
+   byte[] corrBufferBytes = new byte[64 * sizeof(double)];
+
+   int bytesRead = await pipeClient.ReadAsync(dataBufferBytes, 0, dataBufferBytes.Length);
+   int corrBytesRead = await pipeClient.ReadAsync(corrBufferBytes, 0, corrBufferBytes.Length);
+   ```
+
+---
+
+### Efficiency and Extensibility
+
+Named pipes are an efficient method for process communication and can be extended to support other types of processes. For instance:
+- Programs written in **MATLAB** or **Python** can also communicate with our software using named pipes by following a similar approach.
+
+This flexibility allows for seamless integration of processes written in different programming languages with our existing system.
+
+---
