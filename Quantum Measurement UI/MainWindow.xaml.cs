@@ -19,7 +19,7 @@ namespace Quantum_measurement_UI
         private const string PipeName = "DataPipe";
 
         // Constants for data updates about signal, cross-correlation matrix visualization
-        private const int DataPoints = 100;
+        private const int DataPoints = 480;
         private const double UpdateInterval = 200; // milliseconds, 5 Hz update rate
 
         // For configuration file and experiment log
@@ -602,6 +602,50 @@ namespace Quantum_measurement_UI
             }
         }
 
+        /// <summary>
+        /// Event handler for the Move Relative button click in Autobalance tab.
+        /// </summary>
+        private async void AutobalanceMove_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Check if autobalance is running
+                if (autobalancer.IsRunning)
+                {
+                    AppendMessage("Cannot manually move motors while autobalance is running.");
+                    return;
+                }
+
+                // Get motor number from selection
+                int motorNumber = AutobalanceMotorSelection.SelectedIndex + 1;
+
+                // Get steps from text box
+                if (!int.TryParse(AutobalanceRelativeSteps.Text, out int steps))
+                {
+                    AppendMessage("Invalid steps value. Please enter a valid integer.");
+                    return;
+                }
+
+                // Get number of segments for metrics calculation
+                if (!int.TryParse(MetricsSegments.Text, out int numSegments))
+                {
+                    numSegments = 5; // Default value if parsing fails
+                }
+
+                // Call the ManualMove method
+                await autobalancer.ManualMove(motorNumber, steps, numSegments);
+
+                // Update current position display (optional)
+                int currentPosition = 0;
+                motorController.GetCurrentPosition(motorNumber, out currentPosition);
+                AppendMessage($"Motor {motorNumber} current position: {currentPosition}");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error during manual move: {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Data Update Functions
@@ -1149,7 +1193,7 @@ namespace Quantum_measurement_UI
         {
             try
             {
-                gageStreamProcess = System.Diagnostics.Process.Start(@"GageStreamThruGPU.exe");
+                gageStreamProcess = System.Diagnostics.Process.Start(@"C:\Users\jr151\source\repos\Quantum Measurement UI\GageStreamThruGPU\x64\Debug\GageStreamThruGPU.exe");          // can be any path to the executable
                 AppendMessage("GageStreamThruGPU.exe started.");
             }
             catch (Exception ex)

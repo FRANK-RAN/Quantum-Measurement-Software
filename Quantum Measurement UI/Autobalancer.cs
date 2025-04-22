@@ -48,6 +48,63 @@ namespace Quantum_measurement_UI
             MetricValuesB = new ChartValues<double>();          // Metric values for channel B for chart
         }
 
+        public async Task ManualMove(int motorNumber, int steps = 1, int numSegments = 5)
+        {
+            // Validate motor number
+            if (motorNumber != 1 && motorNumber != 2)
+            {
+                mainWindow.AppendMessage($"Invalid motor number: {motorNumber}. Must be 1 or 2.");
+                mainWindow.LogExperimentEvent($"Invalid motor number: {motorNumber}. Must be 1 or 2.");
+                return;
+            }
+
+            // Check if autobalance is running
+            if (IsRunning)
+            {
+                mainWindow.AppendMessage("Cannot manually move motors while autobalance is running.");
+                mainWindow.LogExperimentEvent("Manual move attempted while autobalance is running.");
+                return;
+            }
+
+            try
+            {
+                // Move the motor
+                CancellationTokenSource cts = new CancellationTokenSource();
+                await MoveMotor(motorNumber, steps, cts.Token);
+
+                // Read data buffer
+                short[] currentDataBuffer = getDataBuffer();
+
+                // Get start indices
+                int startIndex_A = GetStartIndex(currentDataBuffer, 'A');
+                int startIndex_B = GetStartIndex(currentDataBuffer, 'B');
+
+                // Compute metrics
+                currentMetricA = ComputeFlatnessMetric(currentDataBuffer, numSegments, 'A', startIndex_A);
+                currentMetricB = ComputeFlatnessMetric(currentDataBuffer, numSegments, 'B', startIndex_B);
+
+                // Update the charts
+                UpdateChartData();
+
+                // Log the metric values
+                mainWindow.AppendMessage($"After moving motor {motorNumber} by {steps} steps:");
+                // display the start index for channel A and B
+                mainWindow.AppendMessage($"Start Index A: {startIndex_A}, Start Index B: {startIndex_B}");
+                mainWindow.AppendMessage($"Metric A: {currentMetricA:F2}, Metric B: {currentMetricB:F2}");
+                mainWindow.LogExperimentEvent($"Manual move: Motor {motorNumber} moved {steps} steps");
+                mainWindow.LogExperimentEvent($"Metric A: {currentMetricA:F2}, Metric B: {currentMetricB:F2}");
+            }
+            catch (Exception ex)
+            {
+                dispatcher.Invoke(() =>
+                {
+                    mainWindow.AppendMessage($"Error during manual move: {ex.Message}");
+                    mainWindow.LogExperimentEvent($"Error during manual move: {ex.Message}");
+                });
+            }
+        }
+
+
         public void Start(double threshold, int numsegments)
         {
             if (IsRunning)
@@ -362,7 +419,7 @@ namespace Quantum_measurement_UI
                     }
                 }
 
-                double metric = Math.Abs(sumGroup1 - sumGroup2);
+                double metric = (sumGroup1 - sumGroup2);
                 sumMetric += metric;
             }
 
@@ -421,10 +478,10 @@ namespace Quantum_measurement_UI
                 throw new Exception($"Failed to move motor {motorNumber}.");
             }
 
-            if (motorNumber == 1)
-                currentMotor1Position += steps;
-            else if (motorNumber == 2)
-                currentMotor2Position += steps;
+            this.motorController.GetCurrentPosition(1, out currentMotor1Position);
+            this.motorController.GetCurrentPosition(2, out currentMotor2Position);
+
+
 
             bool isMotionDone = false;
             while (!isMotionDone)

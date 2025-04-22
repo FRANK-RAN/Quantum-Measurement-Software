@@ -1574,7 +1574,7 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 			}
 
 			if (NULL != pWorkBuffer && useIPC) {
-				int result = handleClientRequests(raw_signal_hPipe, pWorkBuffer, h_odata, 0, 200);  // 200 is the number of bytes of signal to send, check request from client and send data
+				int result = handleClientRequests(raw_signal_hPipe, pWorkBuffer, h_odata, 0, 960);  // 200 is the number of bytes of signal to send, check request from client and send data
 				if (result == 4) {
 					SetEvent(g_hStreamError);
 					bDone = TRUE;

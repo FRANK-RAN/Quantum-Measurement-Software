@@ -29,6 +29,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="CmdLib8742">
+      <HintPath>..\..\..\..\..\..\Program Files\New Focus\New Focus Picomotor Application\Bin\CmdLib8742.dll</HintPath>
+    </Reference>
+    <Reference Include="NpEthernet">
+      <HintPath>..\..\..\..\..\..\Program Files\New Focus\New Focus Picomotor Application\Bin\NpEthernet.dll</HintPath>
+    </Reference>
+    <Reference Include="UsbDllWrap">
+      <HintPath>..\..\..\..\..\..\Program Files\New Focus\New Focus Picomotor Application\Bin\UsbDllWrap.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Images\Rice-EQUAL-Lab-Logo.png" />
     <Resource Include="Images\rice-university-logo.jpg" />
   </ItemGroup>
