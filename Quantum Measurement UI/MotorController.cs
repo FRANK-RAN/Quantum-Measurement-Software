@@ -1,7 +1,7 @@
 ﻿using System;
 using NewFocus.Picomotor;
 
-namespace MotorControl
+namespace Quantum_measurement_UI
 {
     public class MotorController
     {
