@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using MotorControl;
 using System.Windows.Threading;
 using LiveCharts;
 using LiveCharts.Defaults;

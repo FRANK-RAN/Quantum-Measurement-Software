@@ -1,7 +1,6 @@
 ﻿using LiveCharts;
 using LiveCharts.Defaults;
 using LiveCharts.Wpf;
-using MotorControl;
 using System.IO.Pipes;
 using System.Windows;
 using System.Windows.Media;
@@ -24,8 +23,8 @@ namespace Quantum_measurement_UI
 
         // For configuration file and experiment log
         private const string IniFilePath = @"StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
-        private const string resultsBaseDirectory = @"C:\Users\jr151\source\repos\Quantum Measurement UI\results";   // Base directory for storing experiment logs, ## can be modified for different users
-
+        private const string resultsBaseDirectory = @"C:\Quantum Squeezing\Quantum-Measurement-Software\results";   // Base directory for storing experiment logs, ## can be modified for different users
+        private const string exePath = @"C:\Quantum Squeezing\Quantum-Measurement-Software\GageStreamThruGPU\x64\Debug\GageStreamThruGPU.exe"; // executable path for GageStreamThruGPU program
         #endregion
 
         #region Fields
@@ -1149,7 +1148,7 @@ namespace Quantum_measurement_UI
         {
             try
             {
-                gageStreamProcess = System.Diagnostics.Process.Start(@"GageStreamThruGPU.exe");
+                gageStreamProcess = System.Diagnostics.Process.Start(exePath);
                 AppendMessage("GageStreamThruGPU.exe started.");
             }
             catch (Exception ex)
