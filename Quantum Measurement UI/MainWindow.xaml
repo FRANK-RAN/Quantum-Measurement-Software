@@ -141,6 +141,12 @@
                                     <TextBlock Text="Time Counter (TimeCounter):" Margin="0,5,0,0" />
                                     <TextBox Name="TimeCounterTextBox" Width="100" Text="100000000" />
 
+                                    <!-- Delay Stage Program Configuration -->
+                                    <TextBlock Text="Delay Stage Program:" Margin="0,10,0,0" />
+                                    <TextBox Name="DelayStageProgram" Width="100" Text="Motion" />
+                                    <TextBlock Text="(Name of program to execute)" FontSize="9" Foreground="Gray" Margin="0,2,0,0" />
+
+
                                     <!-- Apply Button -->
                                     <Button Content="Apply" Width="120" Click="ApplyConfigButton_Click" Margin="0,10,0,5"/>
                                 </StackPanel>
@@ -189,6 +195,50 @@
                                 Click="ResumeButton_Click"/>
                             </StackPanel>
                         </GroupBox>
+
+
+                        <!-- Delay stage status -->
+                        <GroupBox Header="Delay Stage" Margin="0,10,0,0">
+                            <StackPanel Orientation="Vertical" Margin="10">
+                                <!-- Position Display -->
+                                <Grid Margin="0,5,0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Position:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+                                        <TextBlock Name="DelayStagePositionText" Text="0.00000" VerticalAlignment="Center"/>
+                                        <TextBlock Text=" mm" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Status Indicator -->
+                                <Grid Margin="0,5,0,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Status:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+                                        <Ellipse Name="DelayStageStatusIndicator" Width="15" Height="15" Fill="Red" Margin="5,0,0,0"/>
+                                        <TextBlock Name="DelayStageStatusText" Text="Off" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Reset Button -->
+                                <Button Name="ResetDelayStageButton" 
+                                    Content="Reset" 
+                                    Width="120" 
+                                    Margin="0,10,0,5" 
+                                    Click="ResetDelayStageButton_Click"
+                                    ToolTip="Resets the ESP300 controller - may take 20 seconds to complete"/>
+                                
+                            </StackPanel>
+                            
+                            
+                        </GroupBox>
+
 
                         <!-- Experiment Status Panel at the Bottom -->
                         <GroupBox Header="Experiment Status" Margin="0,10,0,0">

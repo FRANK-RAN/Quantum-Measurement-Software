@@ -28,6 +28,15 @@
     <Reference Include="CmdLib">
       <HintPath>..\..\..\..\..\..\Program Files\New Focus\New Focus Picomotor Application\Samples\CmdLib.dll</HintPath>
     </Reference>
+    <Reference Include="Ivi.Visa">
+      <HintPath>..\..\..\Program Files (x86)\IVI Foundation\VISA\Microsoft.NET\Framework32\v2.0.50727\VISA.NET Shared Components 7.2.0\Ivi.Visa.dll</HintPath>
+    </Reference>
+    <Reference Include="NationalInstruments.Common">
+      <HintPath>..\..\..\Users\Public\Documents\National Instruments\NI-DAQ\Examples\DotNET4.5\Control\General\PWMCounterOutput\CS\bin\Debug\NationalInstruments.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="NationalInstruments.Visa">
+      <HintPath>..\..\..\Program Files (x86)\IVI Foundation\VISA\Microsoft.NET\Framework32\v4.0.30319\NI VISA.NET 25.0\NationalInstruments.Visa.dll</HintPath>
+    </Reference>
     <Reference Include="NpEthernet">
       <HintPath>..\..\..\..\..\..\Program Files\New Focus\New Focus Picomotor Application\Bin\NpEthernet.dll</HintPath>
     </Reference>

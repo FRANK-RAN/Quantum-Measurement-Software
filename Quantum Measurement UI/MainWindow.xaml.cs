@@ -74,6 +74,14 @@ namespace Quantum_measurement_UI
         // For Autobalance functionality
         private Autobalancer autobalancer;          // Autobalancer instance, used for automatic balancing
 
+        // For ESP300 Controller which controls delay stage
+        private ESP300Controller esp300Controller; // ESP300 controller instance for controlling the delay stage
+       
+        // For delay stage position logging
+        private CancellationTokenSource delayStagePositionCancellationTokenSource;
+        private StreamWriter delayStageLogWriter;
+        private double delayStageCurrentPosition = 0.0; // Stores the current position of the delay stage
+
         // For experiment log
         private string experimentLogDirectory;      // Stores the directory name for the experiment log
         private string experimentLogFilePath;       // Stores the full path to the experiment log file
@@ -98,6 +106,13 @@ namespace Quantum_measurement_UI
             InitializeComponent();          // Initialize the UI components
 
             motorController = new MotorController();         // Initialize MotorController instance
+
+            esp300Controller = new ESP300Controller
+            {
+                Axis = 1                  // Axis number
+            };
+
+            esp300Controller.Connect();         // Connect to the ESP300 controller
 
             // Initialize charts
             InitializeSignalChart();         // Initialize the signal chart data                                          
@@ -601,6 +616,60 @@ namespace Quantum_measurement_UI
             }
         }
 
+        /// <summary>
+        /// Event handler for the Reset Delay Stage button click.
+        /// </summary>
+        private async void ResetDelayStageButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Disable the button during reset
+                ResetDelayStageButton.IsEnabled = false;
+
+                // Update status
+                DelayStageStatusText.Text = "Resetting...";
+                DelayStageStatusIndicator.Fill = Brushes.Yellow;
+
+                // Log the reset action
+                AppendMessage("Resetting ESP300 controller...");
+                LogExperimentEvent("Resetting ESP300 controller...");
+
+                // Perform the reset on a background thread to avoid UI freezing
+                await Task.Run(() =>
+                {
+                    // Call the Reset method
+                    esp300Controller.Reset();
+
+                    // Reset takes about 20 seconds to complete according to comments in ESP300Controller.cs
+                    // Log completion message
+                    Dispatcher.Invoke(() =>
+                    {
+                        AppendMessage("ESP300 controller reset completed.");
+                        LogExperimentEvent("ESP300 controller reset completed.");
+
+                        // Update UI status
+                        DelayStageStatusText.Text = "Ready";
+                        DelayStageStatusIndicator.Fill = Brushes.Green;
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions
+                AppendMessage($"Error during ESP300 controller reset: {ex.Message}");
+                LogExperimentEvent($"Error during ESP300 controller reset: {ex.Message}");
+
+                // Update UI to indicate error
+                DelayStageStatusText.Text = "Error";
+                DelayStageStatusIndicator.Fill = Brushes.Red;
+            }
+            finally
+            {
+                // Re-enable the button
+                ResetDelayStageButton.IsEnabled = true;
+            }
+        }
+
         #endregion
 
         #region Data Update Functions
@@ -852,6 +921,7 @@ namespace Quantum_measurement_UI
 
             try
             {
+                
                 StartGageStreamProcess();   // Start the GageStreamThruGPU program, which is in the directory of the executable
                 InitializePipeClient();     // Initialize the pipe client for communication
 
@@ -872,6 +942,10 @@ namespace Quantum_measurement_UI
                 // Initialize the experiment log
                 InitializeExperimentLog();
 
+                // Start the delay stage program
+                startDelayStageProgram();
+                Thread.Sleep(5000); // Wait for 5 seconds to ensure the delay stage program is started
+
                 // Send a request to the server to start data acquisition
                 byte[] request = BitConverter.GetBytes((short)1);  // The request to start experiment is 1
                 await pipeClient.WriteAsync(request, 0, request.Length);      // Send the request
@@ -880,8 +954,8 @@ namespace Quantum_measurement_UI
                 await pipeClient.WriteAsync(expDirBytes, 0, expDirBytes.Length); // Send the experiment directory
 
                 isPaused = false; // Data updates for signal chart and cross correlation matrix visualization can start
-                AppendMessage("Experiment Data Acquisition started.");
-                LogExperimentEvent("Experiment Data Acquisition started.");
+                AppendMessage("Gage Digitizer Data Acquisition started.");
+                LogExperimentEvent("Gage Digitizer Data Acquisition started.");
 
                 // Start data updates
                 StartDataUpdates();
@@ -907,10 +981,12 @@ namespace Quantum_measurement_UI
                 motionCancellationTokenSource?.Cancel();         // Stop automatic motion if running
                 autobalancer?.Stop();                            // Stop autobalancer if running
 
+                stopDelayStageProgram();                         // stop delay stage program       
+
                 // Wait briefly to allow the data update task to stop
                 await Task.Delay(500);
 
-                // Send a termination signal to the other program via the pipe
+                // Send a termination signal to the other program via the pipe, to terminate digital acquisition
                 if (pipeClient?.IsConnected == true)
                 {
                     byte[] request = BitConverter.GetBytes((short)3); // Request to terminate data acquisition
@@ -1095,6 +1171,210 @@ namespace Quantum_measurement_UI
                 motionCancellationTokenSource = null;
             }
         }
+
+        #endregion
+
+        #region ESP300 Controller Delaye Stage
+
+        private void startDelayStageProgram()
+        {
+            // Connect to controller
+
+                try
+                {
+                    // Get the program name from the UI
+                    string programName = "Motion"; // Default value
+                    Dispatcher.Invoke(() => {
+                        programName = DelayStageProgram.Text.Trim();
+                        if (string.IsNullOrEmpty(programName))
+                        {
+                            AppendMessage("Delay stage program name is empty.");
+                            LogExperimentEvent("Delay stage program name is empty.");
+                        }
+                    });
+
+                    // Configure and start the delay stage
+                    esp300Controller.setPositionDisplayResolution(5);
+                    String stage_info = esp300Controller.GetDelayStageInfo();
+                    AppendMessage($"Delay Stage Info: {stage_info}");
+                    LogExperimentEvent($"Delay Stage Info: {stage_info}");
+
+                    // Execute the specified program
+                    esp300Controller.ExecuteProgram(programName);
+                    AppendMessage($"Started delay stage program: {programName}");
+                    LogExperimentEvent($"Started delay stage program: {programName}");
+
+                    esp300Controller.CheckForErrors();
+
+                    // Check initial motion status
+                    int motorStatus = esp300Controller.getMotionStatus();
+                    if (motorStatus == 1)
+                    {
+                        AppendMessage("Delay stage is not moving.");
+                        LogExperimentEvent("Delay stage is not moving.");
+
+                        // Update UI status indicators
+                        Dispatcher.Invoke(() => {
+                            DelayStageStatusText.Text = "Not Moving";
+                            DelayStageStatusIndicator.Fill = Brushes.Yellow;
+                        });
+                    }
+                    else
+                    {
+                        AppendMessage("Delay stage is moving.");
+                        LogExperimentEvent("Delay stage is moving.");
+
+                        // Update UI status indicators
+                        Dispatcher.Invoke(() => {
+                            DelayStageStatusText.Text = "Moving";
+                            DelayStageStatusIndicator.Fill = Brushes.Green;
+                        });
+                    }
+
+                    // Create a separate log file for delay stage position in the experiment directory
+                    string delayStageLogPath = Path.Combine(
+                        resultsBaseDirectory,
+                        experimentLogDirectory,
+                        "delay_stage_positions.log");
+
+                    // Create a StreamWriter for the delay stage position log
+                    delayStageLogWriter = new StreamWriter(delayStageLogPath, true);
+                    delayStageLogWriter.WriteLine("Timestamp,Position");
+
+                    // Create a cancellation token source for the delay stage position monitoring
+                    delayStagePositionCancellationTokenSource = new CancellationTokenSource();
+
+                    // Start a task to continuously monitor the delay stage position
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            // Get the cancellation token
+                            CancellationToken token = delayStagePositionCancellationTokenSource.Token;
+
+                            while (!token.IsCancellationRequested && isExperimentRunning)
+                            {
+                                // Get current position
+                                double currentPosition = esp300Controller.GetCurrentPosition();
+
+                                // Update the class field (no lock needed if only updated here)
+                                delayStageCurrentPosition = currentPosition;
+
+                                // Update the position in the UI
+                                Dispatcher.Invoke(() => {
+                                    DelayStagePositionText.Text = currentPosition.ToString("F5");
+                                });
+
+                                // Get current timestamp
+                                string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+
+                                // Log to the delay stage position log file
+                                delayStageLogWriter.WriteLine($"{timestamp},{currentPosition}");
+                                delayStageLogWriter.Flush();
+
+                                // Check for errors periodically (but not too often)
+                                if (DateTime.Now.Second % 10 == 0) // Only check every ~10 seconds
+                                {
+                                    esp300Controller.CheckForErrors();
+                                }
+
+                                // Wait for 24 ms before next reading
+                                await Task.Delay(24, token);
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // This is expected when cancellation is requested
+                            Dispatcher.Invoke(() =>
+                            {
+                                AppendMessage("Delay stage position monitoring stopped.");
+                                LogExperimentEvent("Delay stage position monitoring stopped.");
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            // Handle other exceptions and log them
+                            Dispatcher.Invoke(() =>
+                            {
+                                AppendMessage($"Error monitoring delay stage: {ex.Message}");
+                                LogExperimentEvent($"Error monitoring delay stage: {ex.Message}");
+                            });
+                        }
+                        finally
+                        {
+                            // Ensure the log file is closed when the experiment ends
+                            if (delayStageLogWriter != null)
+                            {
+                                Dispatcher.Invoke(() =>
+                                {
+                                    AppendMessage("Delay stage position logging completed.");
+                                    LogExperimentEvent("Delay stage position logging completed.");
+                                });
+                            }
+                        }
+                    });
+
+                    // Start the UI position display timer
+                    Dispatcher.Invoke(() => {
+                        // Update the UI status
+                        DelayStageStatusText.Text = "Running";
+                        DelayStageStatusIndicator.Fill = Brushes.Green;
+                    });
+
+                    AppendMessage("Delay stage position monitoring started.");
+                    LogExperimentEvent("Delay stage position monitoring started.");
+                }
+                catch (Exception ex)
+                {
+                    AppendMessage($"Error initializing delay stage: {ex.Message}");
+                    LogExperimentEvent($"Error initializing delay stage: {ex.Message}");
+
+                    // Update UI in case of error
+                    Dispatcher.Invoke(() => {
+                        DelayStageStatusText.Text = "Error";
+                        DelayStageStatusIndicator.Fill = Brushes.Red;
+                    });
+                }
+            
+        }
+
+        private void stopDelayStageProgram()
+        {
+            // Stop the delay stage program
+            esp300Controller.AbortProgram();
+
+            // Update UI status to Off
+            Dispatcher.Invoke(() => {
+                DelayStageStatusText.Text = "Off";
+                DelayStageStatusIndicator.Fill = Brushes.Red;
+            });
+
+            // Stop the delay stage position monitoring task
+            if (delayStagePositionCancellationTokenSource != null)
+            {
+                delayStagePositionCancellationTokenSource.Cancel();
+                Task.Delay(100); // Give it time to stop gracefully
+                delayStagePositionCancellationTokenSource = null;
+            }
+
+            // Close the delay stage log file
+            if (delayStageLogWriter != null)
+            {
+                try
+                {
+                    delayStageLogWriter.WriteLine("\n--- Delay Stage Logging End ---");
+                    delayStageLogWriter.Flush();
+                    delayStageLogWriter.Close();
+                    delayStageLogWriter = null;
+                }
+                catch (Exception ex)
+                {
+                    AppendMessage($"Error closing delay stage log: {ex.Message}");
+                    LogExperimentEvent($"Error closing delay stage log: {ex.Message}");
+                }
+            }
+        }
+
 
         #endregion
 
