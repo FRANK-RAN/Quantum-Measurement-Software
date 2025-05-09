@@ -1204,10 +1204,16 @@ namespace Quantum_measurement_UI
                     AppendMessage($"Started delay stage program: {programName}");
                     LogExperimentEvent($"Started delay stage program: {programName}");
 
-                    esp300Controller.CheckForErrors();
+                    String controller_error = esp300Controller.CheckForErrors();
 
-                    // Check initial motion status
-                    int motorStatus = esp300Controller.getMotionStatus();
+                    if (controller_error != "No delay stage errors detected")
+                    {
+                        AppendMessage($"Error in delay stage: {controller_error}");
+                        LogExperimentEvent($"Error in delay stage: {controller_error}");
+                    }
+
+                // Check initial motion status
+                int motorStatus = esp300Controller.getMotionStatus();
                     if (motorStatus == 1)
                     {
                         AppendMessage("Delay stage is not moving.");
@@ -1275,7 +1281,15 @@ namespace Quantum_measurement_UI
                                 // Check for errors periodically (but not too often)
                                 if (DateTime.Now.Second % 10 == 0) // Only check every ~10 seconds
                                 {
-                                    esp300Controller.CheckForErrors();
+                                    controller_error = esp300Controller.CheckForErrors();
+                                    if (controller_error != "No delay stage errors detected")
+                                    {
+                                        Dispatcher.Invoke(() =>
+                                        {
+                                            AppendMessage($"Error in delay stage: {controller_error}");
+                                            LogExperimentEvent($"Error in delay stage: {controller_error}");
+                                        });
+                                    }
                                 }
 
                                 // Wait for 24 ms before next reading
