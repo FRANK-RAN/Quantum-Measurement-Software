@@ -7,12 +7,66 @@ using System.Windows.Media;
 using System.IO;
 using System.Windows.Threading;
 using System.Diagnostics;
+using System.Windows.Controls;
+using QuantumSqueezingUI;
+using System.Collections.ObjectModel;
+
 
 namespace Quantum_measurement_UI
 {
     public partial class MainWindow : Window
     {
         #region Constants
+
+        private int selectedDAQChannel = 0; // Default to Channel 0
+        private CancellationTokenSource motorVsAI5Cts;
+        public ChartValues<ObservablePoint> AI5TimeSeriesValues { get; set; }
+        public ChartValues<double> AI5HistogramValues { get; set; }
+
+
+        private List<double> ai5AmplitudeBuffer = new List<double>();
+        private PipeClient daqPipe;
+        private Process daqServiceProcess = null;
+        private CancellationTokenSource nidaqMonitoringCancellationTokenSource;
+        public ChartValues<double> DAQChannel0Values { get; set; }
+        public ChartValues<double> DAQChannel1Values { get; set; }
+        public ChartValues<double> DAQChannel2Values { get; set; }
+        public ChartValues<double> DAQChannel3Values { get; set; }
+        public ChartValues<double> DAQChannel4Values { get; set; }
+        public ChartValues<double> DAQChannel5Values { get; set; }
+        private double[] daqBuffer = new double[900]; // Example buffer (6 channels x 10000 samples)
+                                                      // === Motor Position vs AI5 Amplitude ===
+        public ChartValues<ObservablePoint> MotorVsAI5Values { get; set; }
+        private CancellationTokenSource autoReadCts;
+        public class StatRow
+        {
+            public string Channel { get; set; }
+            public double Mean { get; set; }
+            public double StdDev { get; set; }
+            public double Min { get; set; }
+            public double Max { get; set; }
+            public double Power { get; set; }
+
+            public StatRow(string ch, double mean, double std, double min, double max, double power)
+            {
+                Channel = ch;
+                Mean = mean;
+                StdDev = std;
+                Min = min;
+                Max = max;
+                Power = power;
+            }
+        }
+
+
+
+        private List<double> ai5CumulativeData = new List<double>();
+        private List<double> ai5CurrentWindowData = new List<double>();
+        private double ai5SampleRate = 10000; // 10kHz
+
+
+
+        public ChartValues<double> ESPPositionValues { get; set; }
 
         // Constants for process communication using named pipe 
         private const string PipeName = "DataPipe";
@@ -25,6 +79,13 @@ namespace Quantum_measurement_UI
         private const string IniFilePath = @"StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
         private const string resultsBaseDirectory = @"C:\Quantum Squeezing\Quantum-Measurement-Software\results";   // Base directory for storing experiment logs, ## can be modified for different users
         private const string exePath = @"C:\Quantum Squeezing\Quantum-Measurement-Software\GageStreamThruGPU\x64\Debug\GageStreamThruGPU.exe"; // executable path for GageStreamThruGPU program
+
+
+        private CancellationTokenSource motorVsAi5AutoLogCts;
+        private bool isMotorVsAi5AutoLogging = false;
+        private string motorVsAi5AutoLogDirectory = @"C:\Quantum Squeezing\Quantum-Measurement-Software\results\MotorVsAI5Logs\";
+
+
         #endregion
 
         #region Fields
@@ -104,9 +165,9 @@ namespace Quantum_measurement_UI
         {
             // Constructor for the MainWindow class, initializes all the UI components and fields needed for the application
             InitializeComponent();          // Initialize the UI components
-
+           
             motorController = new MotorController();         // Initialize MotorController instance
-
+            DataContext = this;
             esp300Controller = new ESP300Controller
             {
                 Axis = 1                  // Axis number
@@ -132,6 +193,115 @@ namespace Quantum_measurement_UI
                 Dispatcher,
                 this // Pass the reference to MainWindow
             );
+
+            ESPPositionValues = new ChartValues<double>();
+
+            ESPPositionChart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "ESP Position",
+        Values = ESPPositionValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+
+
+            // Initialize DAQ Channel Values
+            DAQChannel0Values = new ChartValues<double>();
+            DAQChannel1Values = new ChartValues<double>();
+            DAQChannel2Values = new ChartValues<double>();
+            DAQChannel3Values = new ChartValues<double>();
+            DAQChannel4Values = new ChartValues<double>();
+            DAQChannel5Values = new ChartValues<double>();
+
+            // Set up DAQChart with 6 series
+            DAQChart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "Channel 0",
+        Values = DAQChannel0Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 1",
+        Values = DAQChannel1Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 2",
+        Values = DAQChannel2Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 3",
+        Values = DAQChannel3Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 4",
+        Values = DAQChannel4Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 5",
+        Values = DAQChannel5Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+
+
+
+            MotorVsAI5Values = new ChartValues<ObservablePoint>();
+
+            MotorVsAI5Chart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "Motor Pos vs AI5",
+        Values = MotorVsAI5Values,
+        PointGeometrySize = 5,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+
+            AI5TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI5HistogramValues = new ChartValues<double>();
+
+            AI5TimeSeriesChart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "AI5 Voltage",
+        Values = AI5TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+
+          
 
             InitializeAutobalanceCharts();  // Initialize Autobalance Charts
 
@@ -946,6 +1116,12 @@ namespace Quantum_measurement_UI
                 startDelayStageProgram();
                 Thread.Sleep(5000); // Wait for 5 seconds to ensure the delay stage program is started
 
+                // Start the ESP position update task
+                espPositionCancellationTokenSource = new CancellationTokenSource();
+                Task.Run(() => UpdateESPPosition(espPositionCancellationTokenSource.Token));
+
+
+
                 // Send a request to the server to start data acquisition
                 byte[] request = BitConverter.GetBytes((short)1);  // The request to start experiment is 1
                 await pipeClient.WriteAsync(request, 0, request.Length);      // Send the request
@@ -980,6 +1156,7 @@ namespace Quantum_measurement_UI
                 motorPositionCancellationTokenSource?.Cancel();  // Stop motor position updates
                 motionCancellationTokenSource?.Cancel();         // Stop automatic motion if running
                 autobalancer?.Stop();                            // Stop autobalancer if running
+                espPositionCancellationTokenSource?.Cancel();
 
                 stopDelayStageProgram();                         // stop delay stage program       
 
@@ -1176,6 +1353,159 @@ namespace Quantum_measurement_UI
 
         #region ESP300 Controller Delaye Stage
 
+        private void ApplyMotionSettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string axisPrefix = esp300Controller.Axis.ToString(); // Axis number (usually "1")
+
+                if (double.TryParse(VAInput.Text, out double va))
+                {
+                    esp300Controller.SendCommand($"{axisPrefix}VA{va}");
+                    AppendMessage($"Set VA (Velocity) = {va}");
+                }
+
+                if (double.TryParse(VUInput.Text, out double vu))
+                {
+                    esp300Controller.SendCommand($"{axisPrefix}VU{vu}");
+                    AppendMessage($"Set VU (Velocity Limit) = {vu}");
+                }
+
+                if (double.TryParse(ACInput.Text, out double ac))
+                {
+                    esp300Controller.SendCommand($"{axisPrefix}AC{ac}");
+                    AppendMessage($"Set AC (Acceleration) = {ac}");
+                }
+
+                if (double.TryParse(AUInput.Text, out double au))
+                {
+                    esp300Controller.SendCommand($"{axisPrefix}AU{au}");
+                    AppendMessage($"Set AU (Max Acc/Dec) = {au}");
+                }
+
+                if (double.TryParse(AGInput.Text, out double ag))
+                {
+                    esp300Controller.SendCommand($"{axisPrefix}AG{ag}");
+                    AppendMessage($"Set AG (Deceleration) = {ag}");
+                }
+
+                LogExperimentEvent("Motion settings updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error applying motion settings: {ex.Message}");
+                LogExperimentEvent($"Error applying motion settings: {ex.Message}");
+            }
+        }
+
+
+
+        private void ESP_StopMotion_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                esp300Controller.SendCommand("ST"); // Stop Motion
+                AppendMessage("ESP motion stopped.");
+                LogExperimentEvent("ESP motion stopped.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error stopping ESP: {ex.Message}");
+            }
+        }
+
+        private void ESP_AbortProgram_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                esp300Controller.AbortProgram(); // Abort program already implemented
+                AppendMessage("ESP program aborted.");
+                LogExperimentEvent("ESP program aborted.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error aborting ESP program: {ex.Message}");
+            }
+        }
+
+        private async void ESP_ResetController_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                AppendMessage("Resetting ESP controller...");
+                LogExperimentEvent("Resetting ESP controller...");
+
+                ResetDelayStageButton.IsEnabled = false;
+                await Task.Run(() => esp300Controller.Reset());
+
+                AppendMessage("ESP controller reset completed.");
+                LogExperimentEvent("ESP controller reset completed.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error resetting ESP: {ex.Message}");
+            }
+            finally
+            {
+                ResetDelayStageButton.IsEnabled = true;
+            }
+        }
+
+
+        private void ReadMotionSettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string axisPrefix = esp300Controller.Axis.ToString();
+
+                esp300Controller.SendCommand($"{axisPrefix}VA?");
+                VAInput.Text = esp300Controller.ReadResponse().Trim();
+
+                esp300Controller.SendCommand($"{axisPrefix}VU?");
+                VUInput.Text = esp300Controller.ReadResponse().Trim();
+
+                esp300Controller.SendCommand($"{axisPrefix}AC?");
+                ACInput.Text = esp300Controller.ReadResponse().Trim();
+
+                esp300Controller.SendCommand($"{axisPrefix}AU?");
+                AUInput.Text = esp300Controller.ReadResponse().Trim();
+
+                esp300Controller.SendCommand($"{axisPrefix}AG?");
+                AGInput.Text = esp300Controller.ReadResponse().Trim();
+
+                AppendMessage("Read current motion settings successfully.");
+                LogExperimentEvent("Read current motion settings successfully.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error reading motion settings: {ex.Message}");
+            }
+        }
+        private void ESP_MoveToPosition_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string axisPrefix = esp300Controller.Axis.ToString();
+
+                if (double.TryParse(PAInput.Text, out double targetPosition))
+                {
+                    esp300Controller.SendCommand($"{axisPrefix}PA{targetPosition}");
+                    AppendMessage($"Commanded ESP to move to absolute position {targetPosition:F3} mm.");
+                    LogExperimentEvent($"Commanded ESP to move to absolute position {targetPosition:F3} mm.");
+                }
+                else
+                {
+                    AppendMessage("Invalid position entered. Please enter a numeric value.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error commanding ESP move: {ex.Message}");
+            }
+        }
+
+
+
         private void startDelayStageProgram()
         {
             // Connect to controller
@@ -1352,6 +1682,8 @@ namespace Quantum_measurement_UI
             
         }
 
+
+
         private void stopDelayStageProgram()
         {
             // Stop the delay stage program
@@ -1488,6 +1820,165 @@ namespace Quantum_measurement_UI
             experimentLogWriter.Flush();
         }
 
+
+        private void StartESPUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (espPositionCancellationTokenSource == null || espPositionCancellationTokenSource.IsCancellationRequested)
+                {
+                    espPositionCancellationTokenSource = new CancellationTokenSource();
+                    Task.Run(() => UpdateESPPosition(espPositionCancellationTokenSource.Token));
+                    AppendMessage("Started updating ESP position.");
+                    LogExperimentEvent("Started updating ESP position.");
+                }
+                else
+                {
+                    AppendMessage("ESP position update is already running.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error starting ESP update: {ex.Message}");
+            }
+        }
+
+        private void StopESPUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (espPositionCancellationTokenSource != null)
+                {
+                    espPositionCancellationTokenSource.Cancel();
+                    AppendMessage("Stopped updating ESP position.");
+                    LogExperimentEvent("Stopped updating ESP position.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error stopping ESP update: {ex.Message}");
+            }
+        }
+
+        private async Task SendESPCommandAsync(string command)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(command))
+                    return;
+
+                esp300Controller.SendCommand(command.Trim());
+                await Task.Delay(100); // Small delay between commands for ESP300 to catch up
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error sending ESP command '{command}': {ex.Message}");
+            }
+        }
+
+
+        private async void RunAutoCycle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string programName = "MotorScan";
+
+                string axisPrefix = esp300Controller.Axis.ToString();
+
+                // Create and store the program inside ESP
+                await SendESPCommandAsync($"10xx ");
+                await SendESPCommandAsync($"10ep ");
+                await SendESPCommandAsync($"1MO");
+
+                await SendESPCommandAsync("dl loop");
+
+                double startPoint = double.Parse(StartPointInput.Text);  // From your UI
+                double endPoint = double.Parse(EndPointInput.Text);
+                int loopCount = int.Parse(LoopCountInput.Text);
+                int dwellTime = int.Parse(DwellTimeInput.Text);  // milliseconds
+
+                await SendESPCommandAsync($"{axisPrefix}PA{endPoint:F3};1WS{dwellTime}");
+                await SendESPCommandAsync($"{axisPrefix}PA{startPoint:F3};1WS{dwellTime}");
+
+                await SendESPCommandAsync($"jl loop,{loopCount}");
+
+                await SendESPCommandAsync("qp");
+
+                AppendMessage("Motor cycle program stored successfully!");
+                LogExperimentEvent("Motor cycle program stored successfully.");
+
+                // Now simply EXECUTE the stored program
+                await SendESPCommandAsync($"10EX ");
+
+                AppendMessage("Motor cycle started (non-blocking).");
+                LogExperimentEvent("Motor cycle started (non-blocking).");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error setting up MotorScan: {ex.Message}");
+            }
+        }
+
+
+        private async void EnableMotorButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string axisPrefix = esp300Controller.Axis.ToString();
+
+                await SendESPCommandAsync($"{axisPrefix}MO"); // 🔥 Turn Motor ON
+
+                AppendMessage("Motor enabled (Motor ON).");
+                LogExperimentEvent("Motor enabled (Motor ON).");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error enabling motor: {ex.Message}");
+                LogExperimentEvent($"Error enabling motor: {ex.Message}");
+            }
+        }
+
+
+        private async Task UpdateESPPosition(CancellationToken cancellationToken)
+{
+    try
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    double position = esp300Controller.GetCurrentPosition();
+                    ESPPositionValues.Add(position);
+
+                    if (ESPPositionValues.Count > 100) // Limit to last 100 points
+                    {
+                        ESPPositionValues.RemoveAt(0);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppendMessage($"Error reading ESP position: {ex.Message}");
+                }
+            });
+
+            await Task.Delay(25, cancellationToken); // Update every 1 second
+        }
+    }
+    catch (TaskCanceledException)
+    {
+        // Task was cancelled (normal)
+    }
+    catch (Exception ex)
+    {
+        AppendMessage($"Exception in UpdateESPPosition: {ex.Message}");
+    }
+}
+
+
+        private CancellationTokenSource espPositionCancellationTokenSource;
+
         /// <summary>
         /// Updates a specific key in a specific section of the .ini file.
         /// </summary>
@@ -1553,6 +2044,589 @@ namespace Quantum_measurement_UI
             }
         }
 
+        private async void ConnectDAQButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                EnsureDAQServiceRunning();
+
+                if (daqPipe == null || !daqPipe.IsConnected)
+                {
+                    daqPipe = new PipeClient();
+                    await daqPipe.ConnectAsync();
+
+                    // 🔥 Start only AI5
+                    string response = await daqPipe.SendCommandAsync("StartAI ai5");
+
+                    AppendMessage("Connected to QuantumDAQService!\n" + response);
+                }
+                else
+                {
+                    AppendMessage("DAQ already connected. Skipping re-connection.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage("Failed to connect to QuantumDAQService: " + ex.Message);
+            }
+        }
+
+        private void EnsureDAQServiceRunning()
+        {
+            var processes = Process.GetProcessesByName("QuantumDAQService");
+            if (processes.Length > 0)
+                return; // Already running
+
+            // Use absolute path
+            string exePath = @"C:\Quantum Squeezing\Quantum-Measurement-Software\QuantumDAQService\bin\Debug\QuantumDAQService.exe";
+
+            if (!File.Exists(exePath))
+            {
+                AppendMessage("QuantumDAQService.exe not found at expected location!\n" + exePath);
+                return;
+            }
+       
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = exePath,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            daqServiceProcess = Process.Start(psi);
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            base.OnClosing(e);
+
+            try
+            {
+                // If we started the DAQ service, close it
+                if (daqServiceProcess != null && !daqServiceProcess.HasExited)
+                {
+                    daqServiceProcess.Kill();
+                    daqServiceProcess.WaitForExit();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage("Failed to close QuantumDAQService: " + ex.Message);
+            }
+        }
+
+       
+
+
+        private void StartMotorVsAI5Update()
+        {
+            motorVsAI5Cts = new CancellationTokenSource();
+            var token = motorVsAI5Cts.Token;
+
+            Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            UpdateMotorVsAI5(); // 🔥 Update motor curve every 100 ms
+                        });
+                        await Task.Delay(100, token); // 100 ms = 10 Hz
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        AppendMessage($"Error in MotorVsAI5 update loop: {ex.Message}");
+                    }
+                }
+            });
+        }
+        private List<double> ai5AccumulationBuffer = new List<double>();
+        private DateTime lastAi5UpdateTime = DateTime.Now;
+
+        private void UpdateAI5Monitor()
+        {
+            int samplesPerChannel = daqBuffer.Length ;
+
+            // Step 1: Accumulate samples into temporary buffer
+            for (int i = 0; i < samplesPerChannel; i++)
+            {
+                double value = daqBuffer[i ]; // ai5 = channel 5
+                ai5AccumulationBuffer.Add(value);
+            }
+
+            // Step 2: Check if 100ms has passed
+            if ((DateTime.Now - lastAi5UpdateTime).TotalMilliseconds >= 100)
+            {
+                if (ai5AccumulationBuffer.Count > 0)
+                {
+                    double mean = ai5AccumulationBuffer.Average(); // Mean value over 100ms window
+                    ai5CurrentWindowData.Add(mean);
+
+                    // Keep buffer only 1000 points (about 100 seconds history)
+                    if (ai5CurrentWindowData.Count > 300)
+                        ai5CurrentWindowData.RemoveAt(0);
+
+                    UpdateAI5TimeSeriesChart();
+                    UpdateAI5Stats(); // still update table stats
+
+                    ai5AccumulationBuffer.Clear(); // Reset accumulator
+                }
+
+                lastAi5UpdateTime = DateTime.Now;
+            }
+        }
+
+        private void ReleaseDAQPipeButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (daqPipe != null)
+                {
+                    daqPipe.Dispose();
+                    daqPipe = null;
+                    AppendMessage("DAQ Pipe released successfully.");
+                }
+                else
+                {
+                    AppendMessage("DAQ Pipe already null.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error releasing DAQ Pipe: {ex.Message}");
+            }
+        }
+
+        private void UpdateAI5TimeSeriesChart()
+        {
+            AI5TimeSeriesValues.Clear();
+
+            double t0 = DateTime.Now.TimeOfDay.TotalSeconds;
+            double dt = 0.1; // Each point is one 100ms bin
+
+            for (int i = 0; i < ai5CurrentWindowData.Count; i++)
+            {
+                AI5TimeSeriesValues.Add(new ObservablePoint(
+                    t0 - (ai5CurrentWindowData.Count - i) * dt,
+                    ai5CurrentWindowData[i]));
+            }
+        }
+
+
+        private void ResetHistogramAI5_Click(object sender, RoutedEventArgs e)
+        {
+            ai5CumulativeData.Clear();
+            ai5CurrentWindowData.Clear();
+            AI5HistogramValues.Clear();
+        }
+        private void ToggleMotorVsAI5AutoLog_Click(object sender, RoutedEventArgs e)
+        {
+            if (!isMotorVsAi5AutoLogging)
+            {
+                StartMotorVsAI5AutoLog();
+            }
+            else
+            {
+                StopMotorVsAI5AutoLog();
+            }
+        }
+
+        private void StartMotorVsAI5AutoLog()
+        {
+            try
+            {
+                if (!Directory.Exists(motorVsAi5AutoLogDirectory))
+                {
+                    Directory.CreateDirectory(motorVsAi5AutoLogDirectory);
+                }
+
+                motorVsAi5AutoLogCts = new CancellationTokenSource();
+                var token = motorVsAi5AutoLogCts.Token;
+
+                Task.Run(async () =>
+                {
+                    while (!token.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            SaveMotorVsAI5ToFile();
+
+                            await Task.Delay(30000, token); // every 30 seconds
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Dispatcher.Invoke(() => AppendMessage($"Auto-Log Error: {ex.Message}"));
+                        }
+                    }
+                });
+
+                isMotorVsAi5AutoLogging = true;
+                AppendMessage("Motor vs AI5 Auto-Logging Started.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error starting Auto-Logging: {ex.Message}");
+            }
+        }
+
+        private void StopMotorVsAI5AutoLog()
+        {
+            try
+            {
+                motorVsAi5AutoLogCts?.Cancel();
+                isMotorVsAi5AutoLogging = false;
+                AppendMessage("Motor vs AI5 Auto-Logging Stopped.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error stopping Auto-Logging: {ex.Message}");
+            }
+        }
+
+        private void SaveMotorVsAI5ToFile()
+        {
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string filename = Path.Combine(motorVsAi5AutoLogDirectory, $"MotorVsAI5_{timestamp}.csv");
+
+            using (var writer = new StreamWriter(filename))
+            {
+                writer.WriteLine("MotorPosition,AI5Amplitude");
+                foreach (var point in MotorVsAI5Values)
+                {
+                    writer.WriteLine($"{point.X:F5},{point.Y:F5}");
+                }
+            }
+        }
+
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            try
+            {
+                // Cancel DAQ AutoRead loop
+                if (autoReadCts != null)
+                {
+                    autoReadCts.Cancel();
+                    autoReadCts.Dispose();
+                    autoReadCts = null;
+                }
+
+                // Cancel Motor Update Loop
+                if (motorVsAI5Cts != null)
+                {
+                    motorVsAI5Cts.Cancel();
+                    motorVsAI5Cts.Dispose();
+                    motorVsAI5Cts = null;
+                }
+
+                // Dispose Pipe Client
+                if (daqPipe != null)
+                {
+                    daqPipe.Dispose();
+                    daqPipe = null;
+                }
+
+                // Safely close ESP controller
+                if (esp300Controller != null)
+                {
+                    // Only do this if esp300Controller has a Close() or Disconnect() method.
+                    // If not, just set to null safely
+                    // Example:
+                    // esp300Controller.Disconnect();
+                    esp300Controller = null;
+                }
+
+                AppendMessage("Resources cleaned up. Exiting.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error during closing: {ex.Message}");
+            }
+        }
+
+
+
+        private async void RunStoredProgram1Button_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (esp300Controller != null)
+                {
+                    await SendESPCommandAsync("1EX"); // 🔥 Run program 1
+                    AppendMessage("Started ESP Program 1 execution.");
+                }
+                else
+                {
+                    AppendMessage("ESP controller not connected.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error running program 1: {ex.Message}");
+            }
+        }
+
+
+
+        private async void RunStoredProgramButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (esp300Controller != null)
+                {
+                    await SendESPCommandAsync("10EX"); // 🔥 Run program 10
+                    AppendMessage("Started ESP Program 10 execution.");
+                }
+                else
+                {
+                    AppendMessage("ESP controller not connected.");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error running program 10: {ex.Message}");
+            }
+        }
+
+
+
+
+        private void UpdateAI5Stats()
+        {
+            var data = ai5CurrentWindowData;
+            if (data.Count > 0)
+            {
+                double mean = data.Average();
+                double stddev = Math.Sqrt(data.Select(v => (v - mean) * (v - mean)).Average());
+                double min = data.Min();
+                double max = data.Max();
+                double power = mean / 10; // Example scaling
+
+                // Clear old entries
+                AI5StatsTable.Items.Clear();
+
+                // Insert manually
+                var row = new object[]
+                {
+            "Ch5",
+            mean.ToString("F4"),
+            stddev.ToString("F4"),
+            min.ToString("F4"),
+            max.ToString("F4"),
+            power.ToString("F4")
+                };
+
+                AI5StatsTable.Items.Add(row);
+            }
+        }
+
+
+
+        private async Task StartAutoRead()
+        {
+            autoReadCts = new CancellationTokenSource();
+            var token = autoReadCts.Token;
+
+            int motorVsAi5Counter = 0; // Counter for slower MotorVsAI5 update
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (daqPipe != null && daqPipe.IsConnected)
+                    {
+                        string response = await daqPipe.SendCommandAsync("ReadAI");
+
+                        string[] tokens = response.Split(',');
+                        for (int i = 0; i < tokens.Length && i < daqBuffer.Length; i++)
+                        {
+                            if (double.TryParse(tokens[i], out double value))
+                                daqBuffer[i] = value;
+                        }
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            UpdateDAQChart();         // 🔥 Existing: Update 6-channel DAQ chart
+                            UpdateAI5Monitor();        // 🔥 NEW: Update AI5 Power Checker functions
+                        });
+
+                        motorVsAi5Counter++;
+                        if (motorVsAi5Counter >= 5) // 🔥 Every 5 * 200ms = 1 second
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                UpdateMotorVsAI5(); // 🔥 Existing: Update Motor vs AI5 slower
+                            });
+                            motorVsAi5Counter = 0;
+                        }
+                    }
+
+                    await Task.Delay(200, token); // Regular fast cycle
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Auto read error: " + ex.Message);
+                }
+            }
+        }
+        private void SaveAI5DataToCSV_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "CSV files (*.csv)|*.csv",
+                    DefaultExt = ".csv",
+                    FileName = "AI5Data_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    using (var writer = new StreamWriter(dialog.FileName))
+                    {
+                        writer.WriteLine("Index,Voltage(V)");
+                        for (int i = 0; i < ai5CurrentWindowData.Count; i++)
+                        {
+                            writer.WriteLine($"{i},{ai5CurrentWindowData[i]}");
+                        }
+                    }
+                    AppendMessage("Saved successfully!");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error saving file: {ex.Message}");
+            }
+        }
+
+
+
+        private void UpdateDAQChart()
+        {
+            int samplesPerChannel = daqBuffer.Length / 6;
+            int binSize = 10;  // Adjust as needed
+            int binnedPoints = samplesPerChannel / binSize;
+
+            var daqSeries = DAQChart.Series[0] as LineSeries;
+            var values = daqSeries.Values as ChartValues<double>;
+
+            if (values.Count != binnedPoints)
+            {
+                values.Clear();
+                for (int i = 0; i < binnedPoints; i++)
+                    values.Add(0);
+            }
+
+            for (int i = 0; i < binnedPoints; i++)
+            {
+                double sum = 0;
+                for (int j = 0; j < binSize; j++)
+                {
+                    int idx = (i * binSize + j) * 6 + selectedDAQChannel; // Use only selected channel
+                    if (idx < daqBuffer.Length)
+                        sum += daqBuffer[idx];
+                }
+                values[i] = sum / binSize;
+            }
+        }
+
+
+        private void UpdateMotorVsAI5()
+        {
+            try
+            {
+                int samplesPerChannel = daqBuffer.Length / 1; // 🔥 Only 1 channel now
+
+                // Accumulate AI5 samples
+                for (int i = 0; i < samplesPerChannel; i++)
+                {
+                    double value = daqBuffer[i]; // ai5 only
+                    ai5AmplitudeBuffer.Add(value);
+                }
+
+                if (ai5AmplitudeBuffer.Count >= 2000) // Adjust this if you collect 100 ms worth of data
+                {
+                    double meanAI5 = ai5AmplitudeBuffer.Average(); // 🔥 Average, not (max-min)/2
+
+                    double position = 0;
+                    if (esp300Controller != null)
+                    {
+                        position = esp300Controller.GetCurrentPosition();
+                    }
+                    else
+                    {
+                        AppendMessage("Warning: ESP controller not connected.");
+                    }
+
+                    if (!double.IsNaN(position))
+                    {
+                        MotorVsAI5Values.Add(new ObservablePoint(position, meanAI5));
+
+                        if (MotorVsAI5Values.Count > 100)
+                            MotorVsAI5Values.RemoveAt(0);
+                    }
+
+                    ai5AmplitudeBuffer.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"Error updating Motor vs AI5 chart: {ex.Message}");
+            }
+        }
+
+
+        private void StopAutoRead()
+        {
+            if (autoReadCts != null)
+            {
+                autoReadCts.Cancel();
+                autoReadCts.Dispose();
+                autoReadCts = null;
+            }
+        }
+
+
+        private void StartDAQButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (daqPipe == null || !daqPipe.IsConnected)
+            {
+                AppendMessage("DAQ Service not connected.");
+                return;
+            }
+
+            _ = StartAutoRead(); // 🔥 Start background auto-reading
+            StartMotorVsAI5Update(); // 🔥 Start MotorVsAI5 live updating
+        }
+
+        private void StopDAQButton_Click(object sender, RoutedEventArgs e)
+        {
+            StopAutoRead(); // 🔥 Stop background loop
+
+            if (motorVsAI5Cts != null)
+            {
+                motorVsAI5Cts.Cancel();
+                motorVsAI5Cts.Dispose();
+                motorVsAI5Cts = null;
+            }
+        }
+
+
+
         /// <summary>
         /// Gets the external clock value from the .ini file.
         /// </summary>
@@ -1604,5 +2678,7 @@ namespace Quantum_measurement_UI
         }
 
         #endregion
+
+
     }
 }

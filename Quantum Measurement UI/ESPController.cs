@@ -88,6 +88,19 @@ namespace Quantum_measurement_UI
             return ($"model and serial number: {response}");
         }
 
+        public string ReadResponse()
+        {
+            if (formattedIO != null)
+            {
+                return formattedIO.ReadLine();
+            }
+            else
+            {
+                throw new Exception("formattedIO session is not initialized.");
+            }
+        }
+
+
         // get the current position of the axis
         public double GetCurrentPosition()
         {
