@@ -11,6 +11,31 @@ See QuantaMeasure in action! Watch the live demonstration  to explore the key fe
 
 ![Demo of the Project](./Images/QM-software.gif)  
 
+# Manual
+
+This software provides an interactive interface to conduct experiments. Before starting an experiment, the user needs to specify parameters in the experiment configuration, such as external/internal clock settings and the program to use for the delay stage. Clicking "Apply" for setting the configuration.
+
+After the experiment configuration is complete, the user can click the "Start" button in the experiment commands section to begin the experiment. It may take several seconds to get a response, after which the delay stage positions will change and charts showing signals will appear. 
+
+When the user wants to end the experiment, they can click the "Terminate" button. Please wait for several seconds before closing the window, as this waiting period gives the software enough time to properly complete the termination process.
+
+# Reproduction
+
+To reproduce the software, follow these steps:
+
+1. Clone the codebase using Git:
+   ```bash
+   git clone https://github.com/FRANK-RAN/Quantum-Measurement-Software
+   ```
+
+2. Place the configuration INI file in the Quantum Measurement UI build directory, in the same location as the executable file.
+# Version History
+
+- **v1.1**: Stable version with motor controller functionality
+- **v1.2**: Added delay stage functionality
+
+
+
 # Table of Contents
 
 - [Introduction](#introduction)
@@ -85,6 +110,10 @@ The **Quantum Measurement UI** project uses WPF (Windows Presentation Foundation
 
 - **`MainWindow.xaml`**: Defines the user interface layout and elements for the main application window. XAML code here acts as a canvas for arranging components and adjusting their layout.
 - **`MainWindow.xaml.cs`**: The **code-behind file** for `MainWindow.xaml`, containing the C# code that defines the logic and functionality of the UI elements declared in `MainWindow.xaml`. While `MainWindow.xaml` is responsible for the layout and structure, `MainWindow.xaml.cs` handles the interactive behavior and application logic.
+- **`MotorController.cs`**: Contains the class to interface with the motor controller. `MainWindow.xaml.cs` can directly use this class to command the motor controller. This code will use assemblies like NewFocus.Picomotor; the programmer can refer to sample code by NewFocus and add the DLL to the project configuration.
+- **`ESPController.cs`**: Contains a class to interface with the ESP300 controller which can control delay stages. The ESP300Controller class uses VISA to send commands to the ESP300 controller for controlling delay stages.
+
+Additional classes to control experiment instruments can be integrated as needed.
 
 ### 2. GageStreamThruGPU
 
@@ -95,11 +124,7 @@ The **GageStreamThruGPU** directory manages data acquisition and GPU-based proce
 - **`DSPEquation_Simple_CPU.c`**: This file defines the data processing logic in a single-threaded, CPU-based way. It serves as a verification tool to ensure the correctness of the CUDA processing logic.
 
 
-### 3. Other Projects [MotorMove]
 
-The codebase solution also supports integrating additional components, such as APIs for controlling experimental instruments. For example, the **MotorMove** project includes `MotorControl.cs`, which manages the motor controller.
-
-This project is standalone with its own environment setup, allowing seamless integration. By using Visual Studio’s **project reference** feature, we can directly access classes and functions defined in this project from other parts of the solution. This approach eliminates the need to modify the environment of any project that references it. Details on how project references work will be covered in the **Project and Process Connections** section.
 
 
 
@@ -344,21 +369,20 @@ For this project, memory optimizations include:
 
 # Project and Process Connections
 
-
-In Visual Studio, our solution currently contains three projects: **Quantum Measurement UI**, **GageStreamThruGPU**, and **MotorMove**. The **MotorMove** project is responsible for controlling the motor controller.
-Projects can be connected via proejct reference or named pipes.
-
+In Visual Studio, our solution currently contains two projects: **Quantum Measurement UI** and **GageStreamThruGPU**. Projects can be connected via project reference or named pipes.
 
 ## Project Reference
 
-Both **Quantum Measurement UI** and **MotorMove** are C# projects. Since they share the same programming language, we can utilize Visual Studio's project reference feature to connect them. 
+> **Attention**: We no longer use project reference to integrate experiment controllers like Motor Controller - this is an old method we used. However, the instructions below can still provide ideas on how to integrate instruments using project references.
 
-For example, in the **Quantum Measurement UI** project, if we want to use classes from **MotorMove**, we can do the following:
+For example, both **Quantum Measurement UI** and **MotorMove** are C# projects. Since they share the same programming language, we can utilize Visual Studio's project reference feature to connect them.
 
-1. Right-click on the **Quantum Measurement UI** project in the solution explorer.
-2. Select **Add** > **Project Reference**.
-3. Choose the **MotorMove** project to add as a reference.
-4. Build the solution, and you can directly use the classes and APIs from **MotorMove** in your code.
+To use classes from **MotorMove** in the **Quantum Measurement UI** project:
+
+1. Right-click on the **Quantum Measurement UI** project in the Solution Explorer
+2. Select **Add** > **Project Reference**
+3. Choose the **MotorMove** project to add as a reference
+4. Build the solution, and you can directly use the classes and APIs from **MotorMove** in your code
 
 This feature is particularly convenient because many vendors provide pre-built .NET C# projects. By integrating these projects into the solution and adding project references, we can seamlessly use their classes and APIs without additional setup.
 
