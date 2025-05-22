@@ -10,7 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="800"/>
             <!-- Main content (TabControl) -->
-            <RowDefinition Height="*" />
+            <RowDefinition Height="*"/>
             <!-- Shared message box -->
         </Grid.RowDefinitions>
 
@@ -621,6 +621,18 @@ Click="RunStoredProgramButton_Click" />
 
             </TabItem>
 
+            <TabItem Header="Messages">
+                <Grid>
+                    <TextBox Name="SharedMessageLog"
+                         IsReadOnly="True"
+                         VerticalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         FontFamily="Consolas"
+                         FontSize="12" />
+                </Grid>
+            </TabItem>
+
      
 
 
@@ -629,7 +641,7 @@ Click="RunStoredProgramButton_Click" />
         </TabControl>
 
         <!-- Shared Message Box at the bottom -->
-        <GroupBox Header="Messages" Grid.Row="1" Margin="10">
+        <!--<GroupBox Header="Messages" Grid.Row="1" Margin="10">
             <Grid>
                 <TextBox Name="SharedMessageLog"
                          IsReadOnly="True"
@@ -639,6 +651,6 @@ Click="RunStoredProgramButton_Click" />
                          FontFamily="Consolas"
                          FontSize="12" />
             </Grid>
-        </GroupBox>
+        </GroupBox>-->
     </Grid>
 </Window>
