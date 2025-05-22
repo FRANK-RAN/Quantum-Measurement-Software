@@ -1608,16 +1608,12 @@ namespace Quantum_measurement_UI
                                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
 
                                 // Log to the delay stage position log file
-                                try
+                                
+                                if(delayStageLogWriter != null)
                                 {
                                     delayStageLogWriter.WriteLine($"{timestamp},{currentPosition}");
                                     delayStageLogWriter.Flush();
                                 }
-                                catch 
-                                {
-                                    continue;
-                                }
-                                
 
                                 // Check for errors periodically (but not too often)
                                 if (DateTime.Now.Second % 10 == 0) // Only check every ~10 seconds
