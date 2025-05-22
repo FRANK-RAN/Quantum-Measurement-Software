@@ -19,15 +19,15 @@ namespace Quantum_measurement_UI
         #region Constants
 
         private int selectedDAQChannel = 0; // Default to Channel 0
-        private CancellationTokenSource motorVsAI5Cts;
-        public ChartValues<ObservablePoint> AI5TimeSeriesValues { get; set; }
+        private CancellationTokenSource? motorVsAI5Cts;
+        public ChartValues<ObservablePoint>? AI5TimeSeriesValues { get; set; }
         public ChartValues<double> AI5HistogramValues { get; set; }
 
 
         private List<double> ai5AmplitudeBuffer = new List<double>();
-        private PipeClient daqPipe;
-        private Process daqServiceProcess = null;
-        private CancellationTokenSource nidaqMonitoringCancellationTokenSource;
+        private PipeClient? daqPipe;
+        private Process? daqServiceProcess = null;
+        private CancellationTokenSource? nidaqMonitoringCancellationTokenSource;
         public ChartValues<double> DAQChannel0Values { get; set; }
         public ChartValues<double> DAQChannel1Values { get; set; }
         public ChartValues<double> DAQChannel2Values { get; set; }
@@ -37,7 +37,7 @@ namespace Quantum_measurement_UI
         private double[] daqBuffer = new double[900]; // Example buffer (6 channels x 10000 samples)
                                                       // === Motor Position vs AI5 Amplitude ===
         public ChartValues<ObservablePoint> MotorVsAI5Values { get; set; }
-        private CancellationTokenSource autoReadCts;
+        private CancellationTokenSource? autoReadCts;
         public class StatRow
         {
             public string Channel { get; set; }
@@ -81,7 +81,7 @@ namespace Quantum_measurement_UI
         private const string exePath = @"C:\Quantum Squeezing\Quantum-Measurement-Software\GageStreamThruGPU\x64\Debug\GageStreamThruGPU.exe"; // executable path for GageStreamThruGPU program
 
 
-        private CancellationTokenSource motorVsAi5AutoLogCts;
+        private CancellationTokenSource? motorVsAi5AutoLogCts;
         private bool isMotorVsAi5AutoLogging = false;
         private string motorVsAi5AutoLogDirectory = @"C:\Quantum Squeezing\Quantum-Measurement-Software\results\MotorVsAI5Logs\";
 
@@ -98,12 +98,12 @@ namespace Quantum_measurement_UI
         private NamedPipeClientStream pipeClient;
 
         // Task for updating data periodically
-        private Task updateTask;
-        private CancellationTokenSource cancellationTokenSource;
+        private Task? updateTask;
+        private CancellationTokenSource? cancellationTokenSource;
 
         // LiveCharts for signal and cross-correlation visualization
         // For SignalChart to visualize the dual channels' signals
-        public SeriesCollection SeriesCollection { get; set; }  // Collection of series for the SignalChart
+        public SeriesCollection? SeriesCollection { get; set; }  // Collection of series for the SignalChart
         public ChartValues<double> ChannelAValues { get; set; } // Values for Channel A
         public ChartValues<double> ChannelBValues { get; set; } // Values for Channel B
 
@@ -111,26 +111,26 @@ namespace Quantum_measurement_UI
         public ChartValues<HeatPoint> heatValues { get; set; }
 
         // For PixelChart to track the selected pixel value of cross-correlation matrix over time
-        public SeriesCollection PixelSeriesCollection { get; set; }
+        public SeriesCollection? PixelSeriesCollection { get; set; }
         public ChartValues<double> PixelValues { get; set; }
         private int selectedRow = 0;
         private int selectedColumn = 0;
 
         // For Autobalance Charts
-        public SeriesCollection SignalSeriesCollectionAutobalance { get; set; }  // For Signal charts in Autobalance
-        public SeriesCollection MotorPositionSeriesCollection { get; set; }  // For Motor Positions charts in Autobalance
-        public SeriesCollection MetricSeriesCollection { get; set; }        // For Flatness Metric charts in Autobalance
+        public SeriesCollection? SignalSeriesCollectionAutobalance { get; set; }  // For Signal charts in Autobalance
+        public SeriesCollection? MotorPositionSeriesCollection { get; set; }  // For Motor Positions charts in Autobalance
+        public SeriesCollection? MetricSeriesCollection { get; set; }        // For Flatness Metric charts in Autobalance
 
         // Motor controller and corresponding fields for functionalities
         private MotorController motorController;   // MotorController instance for controlling the motor
 
         // Fields for managing automatic continuous motion
-        private CancellationTokenSource motionCancellationTokenSource; // For cancelling motion
+        private CancellationTokenSource? motionCancellationTokenSource; // For cancelling motion
         private bool isPaused = true; // Flag for pausing/resuming motion
         private object pauseLock = new object(); // Lock object for pause/resume synchronization
 
         // Fields for updating motor positions automatically
-        private CancellationTokenSource motorPositionCancellationTokenSource; // For cancelling position updates
+        private CancellationTokenSource? motorPositionCancellationTokenSource; // For cancelling position updates
 
         // For Autobalance functionality
         private Autobalancer autobalancer;          // Autobalancer instance, used for automatic balancing
@@ -139,14 +139,14 @@ namespace Quantum_measurement_UI
         private ESP300Controller esp300Controller; // ESP300 controller instance for controlling the delay stage
        
         // For delay stage position logging
-        private CancellationTokenSource delayStagePositionCancellationTokenSource;
+        private CancellationTokenSource? delayStagePositionCancellationTokenSource;
         private StreamWriter delayStageLogWriter;
         private double delayStageCurrentPosition = 0.0; // Stores the current position of the delay stage
 
         // For experiment log
         private string experimentLogDirectory;      // Stores the directory name for the experiment log
-        private string experimentLogFilePath;       // Stores the full path to the experiment log file
-        private StreamWriter experimentLogWriter;    // StreamWriter for writing to the experiment log
+        private string? experimentLogFilePath;       // Stores the full path to the experiment log file
+        private StreamWriter? experimentLogWriter;    // StreamWriter for writing to the experiment log
 
         // For experiment status and elapsed time
         private DateTime experimentStartTime;   // Stores the start time of the experiment
@@ -155,7 +155,7 @@ namespace Quantum_measurement_UI
         private int extClkValue; // Stores the external clock value from the ini file
 
         // For the GageStreamThruGPU process
-        private Process gageStreamProcess;      // Process for starting the GageStreamThruGPU program
+        private Process? gageStreamProcess;      // Process for starting the GageStreamThruGPU program
 
         #endregion
 
@@ -986,6 +986,9 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 AppendMessage($"Communication error: {ex.Message}");
+
+               
+
                 if (!pipeClient.IsConnected)
                 {
                     pipeClient.Dispose();
@@ -1118,7 +1121,7 @@ namespace Quantum_measurement_UI
 
                 // Start the ESP position update task
                 espPositionCancellationTokenSource = new CancellationTokenSource();
-                Task.Run(() => UpdateESPPosition(espPositionCancellationTokenSource.Token));
+                _ = Task.Run(() => UpdateESPPosition(espPositionCancellationTokenSource.Token));
 
 
 
@@ -1605,8 +1608,16 @@ namespace Quantum_measurement_UI
                                 string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
 
                                 // Log to the delay stage position log file
-                                delayStageLogWriter.WriteLine($"{timestamp},{currentPosition}");
-                                delayStageLogWriter.Flush();
+                                try
+                                {
+                                    delayStageLogWriter.WriteLine($"{timestamp},{currentPosition}");
+                                    delayStageLogWriter.Flush();
+                                }
+                                catch 
+                                {
+                                    continue;
+                                }
+                                
 
                                 // Check for errors periodically (but not too often)
                                 if (DateTime.Now.Second % 10 == 0) // Only check every ~10 seconds
@@ -2147,7 +2158,7 @@ namespace Quantum_measurement_UI
                 }
             });
         }
-        private List<double> ai5AccumulationBuffer = new List<double>();
+        private List<double> ai5AccumulationBuffer = new();
         private DateTime lastAi5UpdateTime = DateTime.Now;
 
         private void UpdateAI5Monitor()
@@ -2206,14 +2217,15 @@ namespace Quantum_measurement_UI
 
         private void UpdateAI5TimeSeriesChart()
         {
-            AI5TimeSeriesValues.Clear();
+
+               AI5TimeSeriesValues?.Clear(); // Clear if not null
 
             double t0 = DateTime.Now.TimeOfDay.TotalSeconds;
             double dt = 0.1; // Each point is one 100ms bin
 
             for (int i = 0; i < ai5CurrentWindowData.Count; i++)
             {
-                AI5TimeSeriesValues.Add(new ObservablePoint(
+                AI5TimeSeriesValues?.Add(new ObservablePoint(
                     t0 - (ai5CurrentWindowData.Count - i) * dt,
                     ai5CurrentWindowData[i]));
             }
@@ -2522,7 +2534,17 @@ namespace Quantum_measurement_UI
             int binnedPoints = samplesPerChannel / binSize;
 
             var daqSeries = DAQChart.Series[0] as LineSeries;
+
+            if(daqSeries == null)
+            {
+                return;
+            }
             var values = daqSeries.Values as ChartValues<double>;
+
+            if(values == null)
+            {
+                return;
+            }
 
             if (values.Count != binnedPoints)
             {
