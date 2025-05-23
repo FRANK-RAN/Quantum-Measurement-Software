@@ -1694,7 +1694,7 @@ namespace Quantum_measurement_UI
         private void stopDelayStageProgram()
         {
             // Stop the delay stage program
-            esp300Controller.AbortProgram();
+            esp300Controller?.AbortProgram();
 
             // Update UI status to Off
             Dispatcher.Invoke(() => {
