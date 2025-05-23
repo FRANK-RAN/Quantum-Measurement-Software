@@ -3,14 +3,14 @@
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:av="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="av" x:Class="Quantum_measurement_UI.MainWindow"
-        Title="Quantum Measurement Software" Height="1000" Width="1000"
+        Title="Quantum Measurement Software" Height="Auto" Width="1000" Margin="30"
     Closing="MainWindow_Closing">
-    <Grid>
+    <Grid Margin="0,0,0,-10">
         <!-- Define row definitions -->
         <Grid.RowDefinitions>
-            <RowDefinition Height="800"/>
-            <!-- Main content (TabControl) -->
             <RowDefinition Height="*"/>
+            <!-- Main content (TabControl) -->
+            <!--<RowDefinition Height="100"/>-->
             <!-- Shared message box -->
         </Grid.RowDefinitions>
 
@@ -505,7 +505,7 @@
                                 <TextBox x:Name="DwellTimeInput" Width="100"/>
 
                                 <Button Content="Run Auto Cycle" Width="150" Margin="0,10,0,0" Click="RunAutoCycle_Click"/>
-              
+
 
                             </StackPanel>
                         </GroupBox>
@@ -552,7 +552,7 @@ Click="RunStoredProgramButton_Click" />
                             <Button Content="Release DAQ Pipe" Width="150" Height="30" Margin="5" Click="ReleaseDAQPipeButton_Click" />
 
                             <Button x:Name="StartDAQButton" Content="Start DAQ" Width="100" Height="40" Margin="5" Click="StartDAQButton_Click"/>
-                         <Button x:Name="StopDAQButton" Content="Stop DAQ" Width="100" Height="40" Margin="5" Click="StopDAQButton_Click"/>
+                            <Button x:Name="StopDAQButton" Content="Stop DAQ" Width="100" Height="40" Margin="5" Click="StopDAQButton_Click"/>
                             <Button Content="Save AI5 to CSV" Width="150" Height="30" Margin="5" Click="SaveAI5DataToCSV_Click" />
                             <Button Content="Start/Stop MotorVsAI5 Auto-Log" Click="ToggleMotorVsAI5AutoLog_Click" Width="250" Height="30" Margin="5"/>
 
@@ -596,7 +596,7 @@ Click="RunStoredProgramButton_Click" />
                         <!-- Stats Table -->
                     </Grid.RowDefinitions>
 
-                   
+
 
                     <!-- AI5 Stats Table -->
                     <DataGrid x:Name="AI5StatsTable"
@@ -633,12 +633,13 @@ Click="RunStoredProgramButton_Click" />
                 </Grid>
             </TabItem>
 
-     
+
 
 
 
             <!-- Additional tabs can be added here -->
         </TabControl>
+
 
         <!-- Shared Message Box at the bottom -->
         <!--<GroupBox Header="Messages" Grid.Row="1" Margin="10">
