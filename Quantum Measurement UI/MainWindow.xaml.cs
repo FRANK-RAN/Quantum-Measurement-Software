@@ -2526,39 +2526,72 @@ namespace Quantum_measurement_UI
         private void UpdateDAQChart()
         {
             int samplesPerChannel = daqBuffer.Length / 6;
-            int binSize = 10;  // Adjust as needed
+            int binSize = 10;  // Adjust if needed
             int binnedPoints = samplesPerChannel / binSize;
 
-            var daqSeries = DAQChart.Series[0] as LineSeries;
-
-            if(daqSeries == null)
+            ChartValues<double>[] allChannels = new[]
             {
-                return;
-            }
-            var values = daqSeries.Values as ChartValues<double>;
+        DAQChannel0Values,
+        DAQChannel1Values,
+        DAQChannel2Values,
+        DAQChannel3Values,
+        DAQChannel4Values,
+        DAQChannel5Values
+    };
 
-            if(values == null)
+            // Ensure all channels are sized
+            foreach (var channel in allChannels)
             {
-                return;
+                if (channel.Count != binnedPoints)
+                {
+                    channel.Clear();
+                    for (int i = 0; i < binnedPoints; i++)
+                        channel.Add(0);
+                }
             }
 
-            if (values.Count != binnedPoints)
-            {
-                values.Clear();
-                for (int i = 0; i < binnedPoints; i++)
-                    values.Add(0);
-            }
-
+            // Fill data for all 6 channels
             for (int i = 0; i < binnedPoints; i++)
             {
-                double sum = 0;
-                for (int j = 0; j < binSize; j++)
+                for (int ch = 0; ch < 6; ch++)
                 {
-                    int idx = (i * binSize + j) * 6 + selectedDAQChannel; // Use only selected channel
-                    if (idx < daqBuffer.Length)
-                        sum += daqBuffer[idx];
+                    double sum = 0;
+                    for (int j = 0; j < binSize; j++)
+                    {
+                        int idx = (i * binSize + j) * 6 + ch;
+                        if (idx < daqBuffer.Length)
+                            sum += daqBuffer[idx];
+                    }
+                    allChannels[ch][i] = sum / binSize;
                 }
-                values[i] = sum / binSize;
+            }
+        }
+
+        private void ChannelToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkbox && int.TryParse(checkbox.Tag?.ToString(), out int index))
+            {
+                var series = DAQChart.Series[index] as LineSeries;
+                if (series != null)
+                {
+                    series.StrokeThickness = 2;
+                    series.Fill = Brushes.Transparent;
+                    series.PointGeometry = null;
+                }
+            }
+        }
+
+        private void ChannelToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkbox && int.TryParse(checkbox.Tag?.ToString(), out int index))
+            {
+                var series = DAQChart.Series[index] as LineSeries;
+                if (series != null)
+                {
+                    series.StrokeThickness = 0;
+                    series.Fill = Brushes.Transparent;
+                    series.PointGeometry = null;
+                }
             }
         }
 

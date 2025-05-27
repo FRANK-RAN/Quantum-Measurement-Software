@@ -547,26 +547,34 @@ Click="RunStoredProgramButton_Click" />
             <TabItem Header="NIDaq Plot">
                 <Grid Margin="10">
                     <StackPanel Orientation="Vertical">
+
+                        <!-- DAQ Buttons -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                             <Button x:Name="ConnectDAQButton" Content="Connect DAQ Service" Width="150" Height="40" Margin="5" Click="ConnectDAQButton_Click"/>
                             <Button Content="Release DAQ Pipe" Width="150" Height="30" Margin="5" Click="ReleaseDAQPipeButton_Click" />
-
                             <Button x:Name="StartDAQButton" Content="Start DAQ" Width="100" Height="40" Margin="5" Click="StartDAQButton_Click"/>
                             <Button x:Name="StopDAQButton" Content="Stop DAQ" Width="100" Height="40" Margin="5" Click="StopDAQButton_Click"/>
                             <Button Content="Save AI5 to CSV" Width="150" Height="30" Margin="5" Click="SaveAI5DataToCSV_Click" />
                             <Button Content="Start/Stop MotorVsAI5 Auto-Log" Click="ToggleMotorVsAI5AutoLog_Click" Width="250" Height="30" Margin="5"/>
-
                         </StackPanel>
 
-                        <lvc:CartesianChart x:Name="DAQChart" Grid.Row="2" Height="300" Margin="10">
-                            <!-- AI5 Time Series Chart (Binned 100ms points) -->
-                            <lvc:CartesianChart x:Name="AI5TimeSeriesChart"
-     Grid.Row="0"
-     DisableAnimations="True"
-     LegendLocation="Right"
-     Margin="10" />
-                        </lvc:CartesianChart>
-                        <lvc:CartesianChart x:Name="MotorVsAI5Chart" Grid.Row="3" Height="300" Margin="10">
+                        <!-- DAQ Chart and Channel Toggles -->
+                        <lvc:CartesianChart x:Name="DAQChart" Height="300" LegendLocation="Right" Margin="10"/>
+
+                        <WrapPanel Orientation="Horizontal" Margin="10,0,10,10">
+                            <CheckBox Content="AI0" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="0" Margin="5"/>
+                            <CheckBox Content="AI1" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="1" Margin="5"/>
+                            <CheckBox Content="AI2" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="2" Margin="5"/>
+                            <CheckBox Content="AI3" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="3" Margin="5"/>
+                            <CheckBox Content="AI4" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="4" Margin="5"/>
+                            <CheckBox Content="AI5" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="5" Margin="5"/>
+                        </WrapPanel>
+
+                        <!-- AI5 Monitor -->
+                        <lvc:CartesianChart x:Name="AI5TimeSeriesChart" Height="250" Margin="10" LegendLocation="Right" />
+
+                        <!-- Motor vs AI5 -->
+                        <lvc:CartesianChart x:Name="MotorVsAI5Chart" Height="250" Margin="10">
                             <lvc:CartesianChart.AxisX>
                                 <lvc:Axis Title="ESP Position (mm)" />
                             </lvc:CartesianChart.AxisX>
@@ -574,7 +582,6 @@ Click="RunStoredProgramButton_Click" />
                                 <lvc:Axis Title="AI5 Amplitude (V)" />
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
-
 
                     </StackPanel>
                 </Grid>
