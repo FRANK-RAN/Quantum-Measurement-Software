@@ -53,4 +53,8 @@
     <Resource Include="Images\rice-university-logo.jpg" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+  </ItemGroup>
+
 </Project>
