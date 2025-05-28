@@ -304,7 +304,7 @@ namespace Quantum_measurement_UI
                     await daqPipe.ConnectAsync();
 
                     // 🔥 Start only AI5
-                    string response = await daqPipe.SendCommandAsync("StartAI ai5");
+                    string response = await daqPipe.SendCommandAsync("StartAI ai0");
 
                     AppendMessage("Connected to QuantumDAQService!\n" + response);
                     MessageBox.Show("Connected to QuantumDAQService!");
@@ -398,8 +398,9 @@ namespace Quantum_measurement_UI
             });
         }
 
-        private List<double> ai5AccumulationBuffer = new();
+        private List<double> ai5AccumulationBuffer = [];
         private DateTime lastAi5UpdateTime = DateTime.Now;
+        private bool paused = false;
 
         private void UpdateAI5Monitor()
         {
@@ -418,6 +419,30 @@ namespace Quantum_measurement_UI
                 if (ai5AccumulationBuffer.Count > 0)
                 {
                     double mean = ai5AccumulationBuffer.Average(); // Mean value over 100ms window
+
+                    if(paused) //Check if the method has been paused 
+                    {
+                        if(mean > 0.35)
+                        {
+                            paused = false;
+                            lastAi5UpdateTime = DateTime.Now;
+                            AppendMessage($"Scanner Continued at {lastAi5UpdateTime}");
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+
+                    // If the Voltage within AI5 drops because of the laser, the recording should pause and resume once the laser is recalbrated
+                    if (mean <= 0.35 && !paused) // If the mean is less than 0.1, the function skips over recording, and tries to record another value
+                    { //Voltage Threshold will change depending on the ai channel
+                        lastAi5UpdateTime = DateTime.Now;
+                        AppendMessage($"Scanner Paused at {lastAi5UpdateTime}");
+                        paused = true;
+                        return;
+                    }
+
                     ai5CurrentWindowData.Add(mean);
 
                     // Keep buffer only 1000 points (about 100 seconds history)
