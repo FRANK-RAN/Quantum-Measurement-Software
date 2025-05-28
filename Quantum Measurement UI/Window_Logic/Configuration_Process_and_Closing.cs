@@ -307,6 +307,7 @@ namespace Quantum_measurement_UI
                     string response = await daqPipe.SendCommandAsync("StartAI ai5");
 
                     AppendMessage("Connected to QuantumDAQService!\n" + response);
+                    MessageBox.Show("Connected to QuantumDAQService!");
                 }
                 else
                 {
@@ -316,6 +317,7 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 AppendMessage("Failed to connect to QuantumDAQService: " + ex.Message);
+                MessageBox.Show("Failed to connect to QuantumDAQService: " + ex.Message);
             }
         }
 
@@ -395,6 +397,7 @@ namespace Quantum_measurement_UI
                 }
             });
         }
+
         private List<double> ai5AccumulationBuffer = new();
         private DateTime lastAi5UpdateTime = DateTime.Now;
 
@@ -440,6 +443,7 @@ namespace Quantum_measurement_UI
                     daqPipe.Dispose();
                     daqPipe = null;
                     AppendMessage("DAQ Pipe released successfully.");
+                    MessageBox.Show("DAQ Pipe released successfully.");
                 }
                 else
                 {
@@ -449,6 +453,7 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 AppendMessage($"Error releasing DAQ Pipe: {ex.Message}");
+                MessageBox.Show($"Error releasing DAQ Pipe: {ex.Message}");
             }
         }
 

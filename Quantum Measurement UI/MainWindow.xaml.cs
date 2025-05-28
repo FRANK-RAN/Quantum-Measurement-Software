@@ -14,7 +14,7 @@ using System.Collections.ObjectModel;
 
 namespace Quantum_measurement_UI
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window // Logic for the Main Window is within the "Window Logic" Folder
     {
         
         #region Constructor

@@ -559,7 +559,7 @@ Click="RunStoredProgramButton_Click" />
                         </StackPanel>
 
                         <!-- DAQ Chart and Channel Toggles -->
-                        <lvc:CartesianChart x:Name="DAQChart" Height="300" LegendLocation="Right" Margin="10"/>
+                        <lvc:CartesianChart x:Name="DAQChart" Height="250" LegendLocation="Right" Margin="10"/>
 
                         <WrapPanel Orientation="Horizontal" Margin="10,0,10,10">
                             <CheckBox Content="AI0" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="0" Margin="5"/>
@@ -571,10 +571,10 @@ Click="RunStoredProgramButton_Click" />
                         </WrapPanel>
 
                         <!-- AI5 Monitor -->
-                        <lvc:CartesianChart x:Name="AI5TimeSeriesChart" Height="250" Margin="10" LegendLocation="Right" />
+                        <lvc:CartesianChart x:Name="AI5TimeSeriesChart" Height="200" Margin="10" LegendLocation="Right" />
 
                         <!-- Motor vs AI5 -->
-                        <lvc:CartesianChart x:Name="MotorVsAI5Chart" Height="250" Margin="10">
+                        <lvc:CartesianChart x:Name="MotorVsAI5Chart" Height="200" Margin="10">
                             <lvc:CartesianChart.AxisX>
                                 <lvc:Axis Title="ESP Position (mm)" />
                             </lvc:CartesianChart.AxisX>
@@ -628,6 +628,11 @@ Click="RunStoredProgramButton_Click" />
 
             </TabItem>
 
+            
+            
+            
+            
+            <!--Alternate Tab for the Message Box-->
             <TabItem Header="Messages">
                 <Grid>
                     <TextBox Name="SharedMessageLog"
