@@ -399,6 +399,7 @@ namespace Quantum_measurement_UI
         }
 
         private List<double> ai5AccumulationBuffer = [];
+        private List<DateTime> aiTimeTracker = new List<DateTime>();
         private DateTime lastAi5UpdateTime = DateTime.Now;
         private bool paused = false;
 
@@ -420,9 +421,9 @@ namespace Quantum_measurement_UI
                 {
                     double mean = ai5AccumulationBuffer.Average(); // Mean value over 100ms window
 
-                    if(paused) //Check if the method has been paused 
+                    if (paused) //Check if the method has been paused 
                     {
-                        if(mean > 0.35)
+                        if(Math.Abs(mean) >= 10) // Continue the signal processing and inform the user
                         {
                             paused = false;
                             lastAi5UpdateTime = DateTime.Now;
@@ -430,20 +431,24 @@ namespace Quantum_measurement_UI
                         }
                         else
                         {
+                            AppendMessage($"{mean}");
                             return;
                         }
                     }
 
                     // If the Voltage within AI5 drops because of the laser, the recording should pause and resume once the laser is recalbrated
-                    if (mean <= 0.35 && !paused) // If the mean is less than 0.1, the function skips over recording, and tries to record another value
+
+                    else if (Math.Abs(mean) < 10) // If the absolute value of the mean is less than 10, then the recording pauses and waits for the voltage to return to expected value
                     { //Voltage Threshold will change depending on the ai channel
                         lastAi5UpdateTime = DateTime.Now;
-                        AppendMessage($"Scanner Paused at {lastAi5UpdateTime}");
+                        AppendMessage($"Scanner Paused at {lastAi5UpdateTime} \n");
                         paused = true;
                         return;
                     }
 
+                   
                     ai5CurrentWindowData.Add(mean);
+                    aiTimeTracker.Add(DateTime.Now);
 
                     // Keep buffer only 1000 points (about 100 seconds history)
                     if (ai5CurrentWindowData.Count > 300)
@@ -725,6 +730,7 @@ namespace Quantum_measurement_UI
                     if (daqPipe != null && daqPipe.IsConnected)
                     {
                         string response = await daqPipe.SendCommandAsync("ReadAI");
+                        
 
                         string[] tokens = response.Split(',');
                         for (int i = 0; i < tokens.Length && i < daqBuffer.Length; i++)
@@ -777,10 +783,10 @@ namespace Quantum_measurement_UI
                 {
                     using (var writer = new StreamWriter(dialog.FileName))
                     {
-                        writer.WriteLine("Index,Voltage(V)");
+                        writer.WriteLine("Index,Time,Voltage(V)");
                         for (int i = 0; i < ai5CurrentWindowData.Count; i++)
                         {
-                            writer.WriteLine($"{i},{ai5CurrentWindowData[i]}");
+                            writer.WriteLine($"{i},{aiTimeTracker[i]},{ai5CurrentWindowData[i]}");
                         }
                     }
                     AppendMessage("Saved successfully!");

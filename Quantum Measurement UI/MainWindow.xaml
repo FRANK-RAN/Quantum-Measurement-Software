@@ -18,6 +18,7 @@
         <TabControl Grid.Row="0">
             <!-- Calibration Page -->
             <TabItem Header="Calibration">
+                <ScrollViewer>
                 <Grid>
                     <!-- Define two columns: one for the motor control and one for the charts -->
                     <Grid.ColumnDefinitions>
@@ -323,11 +324,11 @@
                                                 DataLabels="True"
                                                 Title="Cross Correlation">
                                     <lvc:HeatSeries.GradientStopCollection>
-                                        <GradientStop Offset="0" Color="#99FFFF00"/>
-                                        <GradientStop Offset=".25" Color="#FFFFFF00"/>
-                                        <GradientStop Offset=".50" Color="#990000FF"/>
-                                        <GradientStop Offset=".75" Color="#FF0000FF"/>
-                                        <GradientStop Offset="1" Color="#50505050"/>
+                                        <GradientStop Offset="0" Color="#001f3f"/>
+                                        <GradientStop Offset=".25" Color="#2c3e50"/>
+                                        <GradientStop Offset=".50" Color="#444444"/>
+                                        <GradientStop Offset=".75" Color="#7f1d1d"/>
+                                        <GradientStop Offset="1" Color="#b34700"/>
                                     </lvc:HeatSeries.GradientStopCollection>
                                 </lvc:HeatSeries>
                             </lvc:CartesianChart.Series>
@@ -353,10 +354,13 @@
                         </lvc:CartesianChart>
                     </Grid>
                 </Grid>
+                </ScrollViewer>
+                
             </TabItem>
 
             <!-- Autobalance Page -->
             <TabItem Header="Autobalance" Margin="-2,-3,-2,1">
+                <ScrollViewer>
                 <Grid>
                     <!-- Define columns -->
                     <Grid.ColumnDefinitions>
@@ -435,9 +439,11 @@
                         </lvc:CartesianChart>
                     </Grid>
                 </Grid>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="ESP Position">
+                <ScrollViewer>
                 <Grid Margin="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -543,8 +549,11 @@ Click="RunStoredProgramButton_Click" />
                     </StackPanel>
 
                 </Grid>
+                </ScrollViewer>
             </TabItem>
+        
             <TabItem Header="NIDaq Plot">
+                <ScrollViewer>
                 <Grid Margin="10">
                     <StackPanel Orientation="Vertical">
 
@@ -585,8 +594,10 @@ Click="RunStoredProgramButton_Click" />
 
                     </StackPanel>
                 </Grid>
+                </ScrollViewer>
             </TabItem>
             <TabItem Header="PMT">
+                <ScrollViewer>
 
 
                 <!-- ============================================== -->
@@ -625,6 +636,7 @@ Click="RunStoredProgramButton_Click" />
                     </DataGrid>
                 </Grid>
 
+                </ScrollViewer>
 
             </TabItem>
 

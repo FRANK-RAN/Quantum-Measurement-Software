@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using System.Diagnostics;
 using QuantumSqueezingUI;
 using Quantum_measurement_UI;
+using Windows.Networking.PushNotifications;
 
 namespace Quantum_measurement_UI
 {
@@ -154,5 +155,40 @@ namespace Quantum_measurement_UI
         private Process? gageStreamProcess;      // Process for starting the GageStreamThruGPU program
 
         #endregion
+    }
+
+    public class Smoothing_Block // Make a block to assist with the smoothing of data collected on a chart
+    {
+        private double[] values;
+        private double sum;
+        private int occupied;
+        public double avg {  get; set; }
+
+        public Smoothing_Block(int size)
+        {
+            values = new double[size];
+            occupied = 0;
+            avg = 0.0;
+            sum = 0.0;
+        }
+
+        public void Push(double value)
+        {
+            sum -= values[^1]; // remove the value at the end of the list
+            sum += value;
+
+            for (int i = 0; i < occupied-1; i++)
+            {
+                values[i+1] = values[i]; // shift all values to the right
+            }
+
+            if (occupied < values.Length)
+            {
+                occupied++;
+            }
+
+            values[0] = value; // insert the value at the beggining of the block
+            avg = sum/occupied;
+        }
     }
 }
