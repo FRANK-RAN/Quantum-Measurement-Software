@@ -21,6 +21,8 @@ namespace Quantum_measurement_UI
         public ChartValues<double> AI5HistogramValues { get; set; }
 
 
+
+
         private List<double> ai5AmplitudeBuffer = new List<double>();
         private PipeClient? daqPipe;
         private Process? daqServiceProcess = null;

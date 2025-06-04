@@ -12,8 +12,8 @@ using QuantumSqueezingUI;
 namespace Quantum_measurement_UI
 {
     public partial class MainWindow : Window
-    {
-        #region Configuration and Process Management Functions
+    { // Following has Logic for NiDaq and ESP Processes
+        #region Configuration and Process Management Functions 
 
         /// <summary>
         /// Starts the GageStreamThruGPU process.
@@ -66,6 +66,13 @@ namespace Quantum_measurement_UI
 
             experimentLogWriter.WriteLine("\n--- Experiment Start ---\n");
             experimentLogWriter.Flush();
+            // Get filename and description from input fields (with fallback defaults)
+            string filename = string.IsNullOrWhiteSpace(FileNameInput?.Text) ? "test.txt" : FileNameInput.Text;
+            string description = string.IsNullOrWhiteSpace(DescriptionInput?.Text) ? "This is testing logging" : DescriptionInput.Text;
+
+            string additionalLogPath = Path.Combine(resultDirectory, "file_description.log");
+            File.WriteAllText(additionalLogPath, $"Filename: {filename}\nDescription: {description}\n");
+
         }
 
 
@@ -399,7 +406,7 @@ namespace Quantum_measurement_UI
         }
 
         private List<double> ai5AccumulationBuffer = [];
-        private List<DateTime> aiTimeTracker = new List<DateTime>();
+        private List<long> aiTimeTracker = new ();
         private DateTime lastAi5UpdateTime = DateTime.Now;
         private bool paused = false;
 
@@ -448,7 +455,7 @@ namespace Quantum_measurement_UI
 
                    
                     ai5CurrentWindowData.Add(mean);
-                    aiTimeTracker.Add(DateTime.Now);
+                    aiTimeTracker.Add(DateTime.Now.Ticks/ TimeSpan.TicksPerMillisecond);
 
                     // Keep buffer only 1000 points (about 100 seconds history)
                     if (ai5CurrentWindowData.Count > 300)
@@ -783,7 +790,7 @@ namespace Quantum_measurement_UI
                 {
                     using (var writer = new StreamWriter(dialog.FileName))
                     {
-                        writer.WriteLine("Index,Time,Voltage(V)");
+                        writer.WriteLine("Index,Time(ms),Voltage(V)");
                         for (int i = 0; i < ai5CurrentWindowData.Count; i++)
                         {
                             writer.WriteLine($"{i},{aiTimeTracker[i]},{ai5CurrentWindowData[i]}");

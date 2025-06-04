@@ -53,8 +53,15 @@
                                 <TextBlock Text="Relative Move (steps):"/>
                                 <TextBox Name="RelativeSteps" Width="100" Text="0" />
                                 <Button Content="Move Relative" Width="150" Click="MoveRelativeButton_Click" Margin="0,5,0,5"/>
-
-                                <!-- Move to Target -->
+                                    <Button Content="+10" Width="60" Margin="5"
+                Click="MovePlus10_Click"/>
+                                    <Button Content="-10" Width="60" Margin="5"
+                Click="MoveMinus10_Click"/>
+                                    <Button Content="+1" Width="60" Margin="5"
+                Click="MovePlus1_Click"/>
+                                    <Button Content="-1" Width="60" Margin="5"
+                Click="MoveMinus1_Click"/>
+                                    <!-- Move to Target -->
                                 <TextBlock Text="Position Target (steps):"/>
                                 <TextBox Name="PositionTarget" Width="100" Text="0" />
                                 <Button Content="Move to Target" Width="150" Click="MoveToTargetButton_Click" Margin="0,5,0,5"/>
@@ -292,9 +299,21 @@
 
                             </StackPanel>
                         </GroupBox>
+                            <GroupBox Header="Log File Metadata" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="Filename:" Width="70" VerticalAlignment="Center"/>
+                                        <TextBox Name="FileNameInput" Width="80" Text="test.txt"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="Description:" Width="70" VerticalAlignment="Center"/>
+                                        <TextBox Name="DescriptionInput" Width="80" Text="This is testing logging"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
 
 
-                    </StackPanel>
+                        </StackPanel>
 
                     <!-- Container for charts in the third column -->
                     <Grid Grid.Row="0" Grid.Column="3">

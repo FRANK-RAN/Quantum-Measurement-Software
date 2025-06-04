@@ -111,6 +111,27 @@ namespace Quantum_measurement_UI
             }
         }
 
+        private void MovePlus10_Click(object sender, RoutedEventArgs e)
+        {
+            motorController.MovePlus10(esp300Controller.Axis);
+        }
+
+        private void MoveMinus10_Click(object sender, RoutedEventArgs e)
+        {
+            motorController.MoveMinus10(esp300Controller.Axis);
+        }
+
+        private void MovePlus1_Click(object sender, RoutedEventArgs e)
+        {
+            motorController.MovePlus1(esp300Controller.Axis);
+        }
+
+        private void MoveMinus1_Click(object sender, RoutedEventArgs e)
+        {
+            motorController.MoveMinus1(esp300Controller.Axis);
+        }
+
+
         /// <summary>
         /// Event handler for the Move to Target button click.
         /// </summary>

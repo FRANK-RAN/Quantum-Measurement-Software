@@ -23,7 +23,8 @@ namespace Quantum_measurement_UI
         {
             // Constructor for the MainWindow class, initializes all the UI components and fields needed for the application
             InitializeComponent();          // Initialize the UI components
-           
+
+
             motorController = new MotorController();         // Initialize MotorController instance
             DataContext = this;
             esp300Controller = new ESP300Controller

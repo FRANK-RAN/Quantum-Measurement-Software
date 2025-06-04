@@ -63,6 +63,47 @@ namespace Quantum_measurement_UI
             return status;
         }
 
+        // Move the specified motor by a relative number of steps
+        public bool MovePlus10(int motorNumber)
+        {
+            bool status = cmdLib.RelativeMove(deviceKey, motorNumber, 10);
+            if (!status)
+            {
+                Console.WriteLine("I/O Error: Could not perform relative move.");
+            }
+            return status;
+        }
+        // Move the specified motor by a relative number of steps
+        public bool MoveMinus10(int motorNumber)
+        {
+            bool status = cmdLib.RelativeMove(deviceKey, motorNumber, -10);
+            if (!status)
+            {
+                Console.WriteLine("I/O Error: Could not perform relative move.");
+            }
+            return status;
+        }
+        // Move the specified motor by a relative number of steps
+        public bool MovePlus1(int motorNumber)
+        {
+            bool status = cmdLib.RelativeMove(deviceKey, motorNumber, 1);
+            if (!status)
+            {
+                Console.WriteLine("I/O Error: Could not perform relative move.");
+            }
+            return status;
+        }
+        // Move the specified motor by a relative number of steps
+        public bool MoveMinus1(int motorNumber)
+        {
+            bool status = cmdLib.RelativeMove(deviceKey, motorNumber, -1);
+            if (!status)
+            {
+                Console.WriteLine("I/O Error: Could not perform relative move.");
+            }
+            return status;
+        }
+
         // Move the specified motor to an absolute target position
         public bool MoveToPosition(int motorNumber, int targetPosition)
         {
