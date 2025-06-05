@@ -311,8 +311,8 @@ namespace Quantum_measurement_UI
                     await daqPipe.ConnectAsync();
 
                     // 🔥 Start only AI5
-                    string response = await daqPipe.SendCommandAsync("StartAI ai0");
-
+                    string response = await daqPipe.SendCommandAsync("StartAI ai1");
+                    
                     AppendMessage("Connected to QuantumDAQService!\n" + response);
                     MessageBox.Show("Connected to QuantumDAQService!");
                 }
@@ -406,9 +406,12 @@ namespace Quantum_measurement_UI
         }
 
         private List<double> ai5AccumulationBuffer = [];
-        private List<double> aiTimeTracker = new ();
+        private List<double> aiTimeTracker = [];
         private DateTime lastAi5UpdateTime = DateTime.Now;
         private bool paused = false;
+        private double timeElapsed = 0;
+        private bool first = true;
+        private Smoothing_Block test = new(10);
 
         private void UpdateAI5Monitor()
         {
@@ -422,7 +425,8 @@ namespace Quantum_measurement_UI
             }
 
             // Step 2: Check if 100ms has passed
-            if ((DateTime.Now - lastAi5UpdateTime).TotalMilliseconds >= 100)
+            double timeDelta = (DateTime.Now - lastAi5UpdateTime).TotalMilliseconds;
+            if (timeDelta >= 100)
             {
                 if (ai5AccumulationBuffer.Count > 0)
                 {
@@ -430,22 +434,21 @@ namespace Quantum_measurement_UI
 
                     if (paused) //Check if the method has been paused 
                     {
-                        if(Math.Abs(mean) >= 10) // Continue the signal processing and inform the user
+                        if(Math.Abs(mean) >= 0.3) // Continue the signal processing and inform the user
                         {
                             paused = false;
                             lastAi5UpdateTime = DateTime.Now;
                             AppendMessage($"Scanner Continued at {lastAi5UpdateTime}");
                         }
                         else
-                        {
-                            AppendMessage($"{mean}");
+                        { 
                             return;
                         }
                     }
 
                     // If the Voltage within AI5 drops because of the laser, the recording should pause and resume once the laser is recalbrated
 
-                    else if (Math.Abs(mean) < 10) // If the absolute value of the mean is less than 10, then the recording pauses and waits for the voltage to return to expected value
+                    else if (Math.Abs(mean) < 0.3) // If the absolute value of the mean is less than 10, then the recording pauses and waits for the voltage to return to expected value
                     { //Voltage Threshold will change depending on the ai channel
                         lastAi5UpdateTime = DateTime.Now;
                         AppendMessage($"Scanner Paused at {lastAi5UpdateTime} \n");
@@ -453,9 +456,20 @@ namespace Quantum_measurement_UI
                         return;
                     }
 
-                   
-                    ai5CurrentWindowData.Add(mean);
-                    aiTimeTracker.Add((DateTime.Now - lastAi5UpdateTime).TotalMilliseconds);
+                    test.Push(mean);
+                    ai5CurrentWindowData.Add(test.avg);
+
+                    if(!first) // do not record the time of the first data point, will be affected by delay of the system
+                    {
+                        timeElapsed += timeDelta;
+                    }
+                    else
+                    {
+                        first = false;
+                    }
+
+                    aiTimeTracker.Add(timeElapsed);
+
 
                     // Keep buffer only 1000 points (about 100 seconds history)
                     if (ai5CurrentWindowData.Count > 300)
