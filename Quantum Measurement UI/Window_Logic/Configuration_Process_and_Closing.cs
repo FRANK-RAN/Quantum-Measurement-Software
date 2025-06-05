@@ -67,8 +67,8 @@ namespace Quantum_measurement_UI
             experimentLogWriter.WriteLine("\n--- Experiment Start ---\n");
             experimentLogWriter.Flush();
             // Get filename and description from input fields (with fallback defaults)
-            string filename = string.IsNullOrWhiteSpace(FileNameInput?.Text) ? "test.txt" : FileNameInput.Text;
-            string description = string.IsNullOrWhiteSpace(DescriptionInput?.Text) ? "This is testing logging" : DescriptionInput.Text;
+            string filename = string.IsNullOrWhiteSpace(FileNameInput?.Text) ? "Measurement" : FileNameInput.Text;
+            string description = string.IsNullOrWhiteSpace(DescriptionInput?.Text) ? "Conditions" : DescriptionInput.Text;
 
             string additionalLogPath = Path.Combine(resultDirectory, "file_description.log");
             File.WriteAllText(additionalLogPath, $"Filename: {filename}\nDescription: {description}\n");
