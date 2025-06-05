@@ -406,7 +406,7 @@ namespace Quantum_measurement_UI
         }
 
         private List<double> ai5AccumulationBuffer = [];
-        private List<long> aiTimeTracker = new ();
+        private List<double> aiTimeTracker = new ();
         private DateTime lastAi5UpdateTime = DateTime.Now;
         private bool paused = false;
 
@@ -455,7 +455,7 @@ namespace Quantum_measurement_UI
 
                    
                     ai5CurrentWindowData.Add(mean);
-                    aiTimeTracker.Add(DateTime.Now.Ticks/ TimeSpan.TicksPerMillisecond);
+                    aiTimeTracker.Add((DateTime.Now - lastAi5UpdateTime).TotalMilliseconds);
 
                     // Keep buffer only 1000 points (about 100 seconds history)
                     if (ai5CurrentWindowData.Count > 300)
