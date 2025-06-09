@@ -11,8 +11,8 @@ using QuantumSqueezingUI;
 
 namespace Quantum_measurement_UI
 {
-    public partial class MainWindow : Window
-    { // Following has Logic for NiDaq and ESP Processes
+    public partial class MainWindow : Window // Following file has logic for NiDaq and ESP Processes
+    { 
         #region Configuration and Process Management Functions 
 
         /// <summary>
@@ -310,10 +310,10 @@ namespace Quantum_measurement_UI
                     daqPipe = new PipeClient();
                     await daqPipe.ConnectAsync();
 
-                    // 🔥 Start only AI5
+                    // 🔥 Start only AI5                   
                     string response = await daqPipe.SendCommandAsync("StartAI ai1");
-                    
-                    AppendMessage("Connected to QuantumDAQService!\n" + response);
+                    AppendMessage("Connected to QuantumDAQService!\n" + response);                   
+                                       
                     MessageBox.Show("Connected to QuantumDAQService!");
                 }
                 else
@@ -430,6 +430,17 @@ namespace Quantum_measurement_UI
             {
                 if (ai5AccumulationBuffer.Count > 0)
                 {
+
+                    if (!first) // do not record the time of the first data point, will be affected by delay of the system
+                    {
+                        timeElapsed += timeDelta;
+                    }
+                    else
+                    {
+                        first = false;
+                    }
+
+                    aiTimeTracker.Add(timeElapsed);
                     double mean = ai5AccumulationBuffer.Average(); // Mean value over 100ms window
 
                     if (paused) //Check if the method has been paused 
@@ -458,17 +469,6 @@ namespace Quantum_measurement_UI
 
                     test.Push(mean);
                     ai5CurrentWindowData.Add(test.avg);
-
-                    if(!first) // do not record the time of the first data point, will be affected by delay of the system
-                    {
-                        timeElapsed += timeDelta;
-                    }
-                    else
-                    {
-                        first = false;
-                    }
-
-                    aiTimeTracker.Add(timeElapsed);
 
 
                     // Keep buffer only 1000 points (about 100 seconds history)
@@ -791,6 +791,7 @@ namespace Quantum_measurement_UI
         }
         private void SaveAI5DataToCSV_Click(object sender, RoutedEventArgs e)
         {
+            removeOutliers();
             try
             {
                 var dialog = new Microsoft.Win32.SaveFileDialog
@@ -805,6 +806,7 @@ namespace Quantum_measurement_UI
                     using (var writer = new StreamWriter(dialog.FileName))
                     {
                         writer.WriteLine("Index,Time(ms),Voltage(V)");
+
                         for (int i = 0; i < ai5CurrentWindowData.Count; i++)
                         {
                             writer.WriteLine($"{i},{aiTimeTracker[i]},{ai5CurrentWindowData[i]}");
@@ -819,7 +821,51 @@ namespace Quantum_measurement_UI
             }
         }
 
+        private void removeOutliers() // remove any points beyond the standard deviation
+        {
+            double stdDev = StandardDeviation();
+            double average = Average();
+            
+            for(var i = ai5CurrentWindowData.Count - 1; i >= 0; i--)
+            {
+                bool UpperDev = stdDev + average > ai5CurrentWindowData[i] && average < ai5CurrentWindowData[i];
+                bool LowerDev = stdDev - average < ai5CurrentWindowData[i] && average > ai5CurrentWindowData[i];
 
+                if(!UpperDev && !LowerDev)
+                {
+                    ai5CurrentWindowData.Remove(i);
+                    aiTimeTracker.Remove(i);
+                }
+            }
+        }
+
+        private double Average()
+        {
+            double average = 0;
+
+            foreach (var i in ai5CurrentWindowData) // calculate the average of the list
+            {
+                average += i;
+            }
+
+            return average / ai5CurrentWindowData.Count;
+        }
+
+        private double StandardDeviation()
+        {
+            double average = Average(); // Thinking about this, it might be easier to store the average as a private variable in the class
+            double deviations = 0;
+            foreach (var ai in ai5CurrentWindowData)
+            {
+                double deviation = ai - average; // find the deviation of the value from the average
+                deviations += Math.Pow(deviation, 2);
+            }
+
+            deviations /= ai5CurrentWindowData.Count - 1;
+            double result = Math.Sqrt(deviations);
+
+            return result;
+        }
 
         private void UpdateDAQChart()
         {
