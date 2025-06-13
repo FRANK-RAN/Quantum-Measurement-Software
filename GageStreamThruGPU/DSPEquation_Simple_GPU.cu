@@ -9,6 +9,7 @@
 #include <iostream>
 #include <chrono> // For high-resolution time
 #include <ctime>  // For formatting date and time
+#include <cuda.h>
 
 
 

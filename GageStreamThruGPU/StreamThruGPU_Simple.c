@@ -1013,7 +1013,7 @@ cudaError_t InitializeCudaDevice(int32 nDevice, int32* i32MaxBlocks, int32* i32M
 
 	// Choose which GPU to run on, change this on a multi-GPU system.
 
-	cudaStatus = cudaSetDevice(1);
+	cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess)
 	{
 		fprintf(stderr, "\ncudaSetDevice failed!  Do you have a CUDA-capable GPU installed?\n");

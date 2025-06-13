@@ -409,7 +409,7 @@ namespace Quantum_measurement_UI
         private List<double> aiTimeTracker = [];
         private DateTime lastAi5UpdateTime = DateTime.Now;
         private bool paused = false;
-        private double timeElapsed = 0;
+        private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true;
         private Smoothing_Block test = new(10);
 
@@ -511,17 +511,16 @@ namespace Quantum_measurement_UI
         private void UpdateAI5TimeSeriesChart()
         {
 
-            AI5TimeSeriesValues?.Clear(); // Clear if not null
+            //AI5TimeSeriesValues?.Remove(0); // Clear if not null
 
-            double t0 = DateTime.Now.TimeOfDay.TotalSeconds;
-            double dt = 0.1; // Each point is one 100ms bin
+            //double t0 = DateTime.Now.TimeOfDay.TotalSeconds;
+            double dt = 0.001; // Convert each point to seconds
 
-            for (int i = 0; i < ai5CurrentWindowData.Count; i++)
-            {
-                AI5TimeSeriesValues?.Add(new ObservablePoint(
-                    t0 - (ai5CurrentWindowData.Count - i) * dt,
-                    ai5CurrentWindowData[i]));
-            }
+            
+            AI5TimeSeriesValues?.Add(new ObservablePoint(
+                timeElapsed * dt,
+                ai5CurrentWindowData[^1]));
+            
         }
 
 

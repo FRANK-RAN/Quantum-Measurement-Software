@@ -3,8 +3,9 @@
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:av="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="av" x:Class="Quantum_measurement_UI.MainWindow"
-        Title="Quantum Measurement Software" Height="Auto" Width="1000" Margin="30"
+        Title="Quantum Measurement Software" Height="Auto" Width="1000" Margin="30" 
     Closing="MainWindow_Closing">
+    
     <Grid Margin="0,0,0,-10">
         <!-- Define row definitions -->
         <Grid.RowDefinitions>
@@ -18,41 +19,41 @@
         <TabControl Grid.Row="0">
             <!-- Calibration Page -->
             <TabItem Header="Calibration">
-                <ScrollViewer>
-                <Grid>
-                    <!-- Define two columns: one for the motor control and one for the charts -->
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="90" />
-                        <ColumnDefinition Width="180"/>
-                        <ColumnDefinition Width="200"/>
-                        <ColumnDefinition Width="*" />
+                <ScrollViewer VerticalScrollBarVisibility="Hidden">
+                    <Grid>
+                        <!-- Define two columns: one for the motor control and one for the charts -->
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="*" />
 
-                    </Grid.ColumnDefinitions>
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Define two rows: one for the title and one for the main content -->
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+                        <!-- Define two rows: one for the title and one for the main content -->
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
 
 
 
-                    <!-- Left Controllers divided into three sections -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical" Margin="10,10,10,10" Grid.ColumnSpan="2">
-                        <!-- Manual Motion Control -->
-                        <GroupBox Header="Manual Motion Control" Margin="0,0,0,10">
-                            <StackPanel>
-                                <!-- Motor Selection -->
-                                <TextBlock Text="Select Motor:" />
-                                <ComboBox Name="MotorSelection" Width="100" SelectedIndex="0">
-                                    <ComboBoxItem Content="Motor 1" />
-                                    <ComboBoxItem Content="Motor 2" />
-                                    <ComboBoxItem Content="Motor 3" />
-                                </ComboBox>
+                        <!-- Left Controllers divided into three sections -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical" Margin="10,10,10,10" Grid.ColumnSpan="2">
+                            <!-- Manual Motion Control -->
+                            <GroupBox Header="Manual Motion Control" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <!-- Motor Selection -->
+                                    <TextBlock Text="Select Motor:" />
+                                    <ComboBox Name="MotorSelection" Width="100" SelectedIndex="0">
+                                        <ComboBoxItem Content="Motor 1" />
+                                        <ComboBoxItem Content="Motor 2" />
+                                        <ComboBoxItem Content="Motor 3" />
+                                    </ComboBox>
 
-                                <!-- Relative Move -->
-                                <TextBlock Text="Relative Move (steps):"/>
-                                <TextBox Name="RelativeSteps" Width="100" Text="0" />
-                                <Button Content="Move Relative" Width="150" Click="MoveRelativeButton_Click" Margin="0,5,0,5"/>
+                                    <!-- Relative Move -->
+                                    <TextBlock Text="Relative Move (steps):"/>
+                                    <TextBox Name="RelativeSteps" Width="100" Text="0" />
+                                    <Button Content="Move Relative" Width="150" Click="MoveRelativeButton_Click" Margin="0,5,0,5"/>
                                     <Button Content="+10" Width="60" Margin="5"
                 Click="MovePlus10_Click"/>
                                     <Button Content="-10" Width="60" Margin="5"
@@ -62,72 +63,72 @@
                                     <Button Content="-1" Width="60" Margin="5"
                 Click="MoveMinus1_Click"/>
                                     <!-- Move to Target -->
-                                <TextBlock Text="Position Target (steps):"/>
-                                <TextBox Name="PositionTarget" Width="100" Text="0" />
-                                <Button Content="Move to Target" Width="150" Click="MoveToTargetButton_Click" Margin="0,5,0,5"/>
+                                    <TextBlock Text="Position Target (steps):"/>
+                                    <TextBox Name="PositionTarget" Width="100" Text="0" />
+                                    <Button Content="Move to Target" Width="150" Click="MoveToTargetButton_Click" Margin="0,5,0,5"/>
 
-                                <!-- Set Zero Position -->
-                                <Button Content="Set Zero Position" Width="150" Click="SetZeroPositionButton_Click" Margin="0,5,0,5"/>
+                                    <!-- Set Zero Position -->
+                                    <Button Content="Set Zero Position" Width="150" Click="SetZeroPositionButton_Click" Margin="0,5,0,5"/>
 
-                                <!-- Current Position -->
-                                <TextBlock Text="Current Position:" />
-                                <TextBox Name="CurrentPosition" Width="100" IsReadOnly="True" />
-                            </StackPanel>
-                        </GroupBox>
+                                    <!-- Current Position -->
+                                    <TextBlock Text="Current Position:" />
+                                    <TextBox Name="CurrentPosition" Width="100" IsReadOnly="True" />
+                                </StackPanel>
+                            </GroupBox>
 
 
 
-                        <!-- Automatic Continuous Motion Control -->
-                        <GroupBox Header="Automatic Continuous Motion Control">
-                            <StackPanel>
-                                <!-- Time per Move -->
-                                <TextBlock Text="Time per Move (ms):" Margin="0,5,0,0" />
-                                <TextBox Name="TimePerMove" Width="100" Text="200" />
+                            <!-- Automatic Continuous Motion Control -->
+                            <GroupBox Header="Automatic Continuous Motion Control">
+                                <StackPanel>
+                                    <!-- Time per Move -->
+                                    <TextBlock Text="Time per Move (ms):" Margin="0,5,0,0" />
+                                    <TextBox Name="TimePerMove" Width="100" Text="200" />
 
-                                <!-- Steps per Move -->
-                                <TextBlock Text="Steps per Move:" Margin="0,5,0,0" />
-                                <TextBox Name="StepsPerMove" Width="100" Text="5" />
+                                    <!-- Steps per Move -->
+                                    <TextBlock Text="Steps per Move:" Margin="0,5,0,0" />
+                                    <TextBox Name="StepsPerMove" Width="100" Text="5" />
 
-                                <!-- Total Number of Moves -->
-                                <TextBlock Text="Total Number of Moves:" Margin="0,5,0,0" />
-                                <TextBox Name="TotalNumberOfMoves" Width="100" Text="10" />
+                                    <!-- Total Number of Moves -->
+                                    <TextBlock Text="Total Number of Moves:" Margin="0,5,0,0" />
+                                    <TextBox Name="TotalNumberOfMoves" Width="100" Text="10" />
 
-                                <!-- Start and Stop Buttons -->
-                                <Button Content="Start Motion"
+                                    <!-- Start and Stop Buttons -->
+                                    <Button Content="Start Motion"
                                         Width="150"
                                         Click="StartMotionButton_Click"
                                         Margin="0,10,0,5"/>
-                                <Button Content="Stop Motion"
+                                    <Button Content="Stop Motion"
                                         Width="150"
                                         Click="StopMotionButton_Click"
                                         Margin="0,5,0,5"/>
-                            </StackPanel>
-                        </GroupBox>
+                                </StackPanel>
+                            </GroupBox>
 
-                        <!-- Pixel Tracking -->
-                        <GroupBox Header="Pixel Tracking" Margin="0,0,0,10">
-                            <StackPanel>
-                                <!-- Pixel Selection Section -->
-                                <TextBlock Text="Specify Pixel (Matrix Coordinate):" Margin="0,5,0,5" />
+                            <!-- Pixel Tracking -->
+                            <GroupBox Header="Pixel Tracking" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <!-- Pixel Selection Section -->
+                                    <TextBlock Text="Specify Pixel (Matrix Coordinate):" Margin="0,5,0,5" />
 
-                                <TextBlock Text="Row (0-7):" Margin="0,5,0,0" />
-                                <TextBox Name="RowInput" Width="100" Text="0" />
+                                    <TextBlock Text="Row (0-7):" Margin="0,5,0,0" />
+                                    <TextBox Name="RowInput" Width="100" Text="0" />
 
-                                <TextBlock Text="Column (0-7):" Margin="0,5,0,0" />
-                                <TextBox Name="ColumnInput" Width="100" Text="0" />
+                                    <TextBlock Text="Column (0-7):" Margin="0,5,0,0" />
+                                    <TextBox Name="ColumnInput" Width="100" Text="0" />
 
-                                <Button Content="Confirm Pixel Selection"
+                                    <Button Content="Confirm Pixel Selection"
                                         Width="150"
                                         Click="ConfirmPixelSelection_Click"
                                         Margin="0,10,0,10"/>
 
-                                <TextBlock Text="Selected Pixel Value:" />
-                                <TextBox Name="SelectedPixelValue" Width="100" IsReadOnly="True" />
-                            </StackPanel>
-                        </GroupBox>
+                                    <TextBlock Text="Selected Pixel Value:" />
+                                    <TextBox Name="SelectedPixelValue" Width="100" IsReadOnly="True" />
+                                </StackPanel>
+                            </GroupBox>
 
-                        <!-- Logo at the Buttom -->
-                        <Image Source="Images/Rice-EQUAL-Lab-Logo.png"
+                            <!-- Logo at the Buttom -->
+                            <Image Source="Images/Rice-EQUAL-Lab-Logo.png"
                             Width="156" Height="91" RenderTransformOrigin="0.49,0.455"
                                 Stretch="UniformToFill" />
 
@@ -135,170 +136,170 @@
 
 
 
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Vertical" Margin="10,10,10,10" >
-
-
-                        <!-- Acquisition Configuration Panel in the second column -->
-                        <StackPanel Grid.Column="2" Margin="10,10,10,10">
-                            <GroupBox Header="Experiment Configuration" Margin="0,0,0,10">
-                                <StackPanel>
-                                    <!-- ExtClk Configuration -->
-                                    <TextBlock Text="External Clock (ExtClk):" Margin="0,5,0,0" />
-                                    <TextBox Name="ExtClkTextBox" Width="100" Text="1" />
-
-                                    <!-- TimeCounter Configuration -->
-                                    <TextBlock Text="Time Counter (TimeCounter):" Margin="0,5,0,0" />
-                                    <TextBox Name="TimeCounterTextBox" Width="100" Text="100000000" />
-
-                                    <!-- Delay Stage Program Configuration -->
-                                    <TextBlock Text="Delay Stage Program:" Margin="0,10,0,0" />
-                                    <TextBox Name="DelayStageProgram" Width="100" Text="Motion" />
-                                    <TextBlock Text="(Name of program to execute)" FontSize="9" Foreground="Gray" Margin="0,2,0,0" />
-
-
-                                    <!-- Apply Button -->
-                                    <Button Content="Apply" Width="120" Click="ApplyConfigButton_Click" Margin="0,10,0,5"/>
-                                </StackPanel>
-                            </GroupBox>
                         </StackPanel>
 
+                        <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Vertical" Margin="10,10,10,10" >
 
-                        <!-- Experiment Commands GroupBox -->
-                        <GroupBox Header="Experiment Commands" Margin="0,10,0,0">
-                            <StackPanel Margin="10">
-                                <!-- Start Button, centered like the Apply button -->
-                                <Button Name="StartButton"
+
+                            <!-- Acquisition Configuration Panel in the second column -->
+                            <StackPanel Grid.Column="2" Margin="10,10,10,10">
+                                <GroupBox Header="Experiment Configuration" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <!-- ExtClk Configuration -->
+                                        <TextBlock Text="External Clock (ExtClk):" Margin="0,5,0,0" />
+                                        <TextBox Name="ExtClkTextBox" Width="100" Text="1" />
+
+                                        <!-- TimeCounter Configuration -->
+                                        <TextBlock Text="Time Counter (TimeCounter):" Margin="0,5,0,0" />
+                                        <TextBox Name="TimeCounterTextBox" Width="100" Text="100000000" />
+
+                                        <!-- Delay Stage Program Configuration -->
+                                        <TextBlock Text="Delay Stage Program:" Margin="0,10,0,0" />
+                                        <TextBox Name="DelayStageProgram" Width="100" Text="Motion" />
+                                        <TextBlock Text="(Name of program to execute)" FontSize="9" Foreground="Gray" Margin="0,2,0,0" />
+
+
+                                        <!-- Apply Button -->
+                                        <Button Content="Apply" Width="120" Click="ApplyConfigButton_Click" Margin="0,10,0,5"/>
+                                    </StackPanel>
+                                </GroupBox>
+                            </StackPanel>
+
+
+                            <!-- Experiment Commands GroupBox -->
+                            <GroupBox Header="Experiment Commands" Margin="0,10,0,0">
+                                <StackPanel Margin="10">
+                                    <!-- Start Button, centered like the Apply button -->
+                                    <Button Name="StartButton"
                                 Content="Start"
                                 Width="120"
                                 HorizontalAlignment="Center"
                                 Margin="0,10,0,5"
                                 Click="StartButton_Click"/>
 
-                                <!-- Terminate Button, centered like the Apply button -->
-                                <Button Name="TerminateButton"
+                                    <!-- Terminate Button, centered like the Apply button -->
+                                    <Button Name="TerminateButton"
                                 Content="Terminate"
                                 Width="120"
                                 HorizontalAlignment="Center"
                                 Margin="0,5,0,10"
                                 Click="TerminateButton_Click"/>
-                            </StackPanel>
-                        </GroupBox>
+                                </StackPanel>
+                            </GroupBox>
 
-                        <!-- Data Display Control GroupBox -->
-                        <GroupBox Header="Data Display Control" Margin="0,10,0,0">
-                            <StackPanel Margin="10">
-                                <!-- Pause Button, centered -->
-                                <Button Name="PauseButton"
+                            <!-- Data Display Control GroupBox -->
+                            <GroupBox Header="Data Display Control" Margin="0,10,0,0">
+                                <StackPanel Margin="10">
+                                    <!-- Pause Button, centered -->
+                                    <Button Name="PauseButton"
                                 Content="Pause"
                                 Width="120"
                                 HorizontalAlignment="Center"
                                 Margin="0,10,0,5"
                                 Click="PauseButton_Click"/>
 
-                                <!-- Resume Button, centered -->
-                                <Button Name="ResumeButton"
+                                    <!-- Resume Button, centered -->
+                                    <Button Name="ResumeButton"
                                 Content="Resume"
                                 Width="120"
                                 HorizontalAlignment="Center"
                                 Margin="0,5,0,10"
                                 Click="ResumeButton_Click"/>
-                            </StackPanel>
-                        </GroupBox>
+                                </StackPanel>
+                            </GroupBox>
 
 
-                        <!-- Delay stage status -->
-                        <GroupBox Header="Delay Stage" Margin="0,10,0,0">
-                            <StackPanel Orientation="Vertical" Margin="10">
-                                <!-- Position Display -->
-                                <Grid Margin="0,5,0,5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Position:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
-                                        <TextBlock Name="DelayStagePositionText" Text="0.00000" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" mm" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                    </StackPanel>
-                                </Grid>
+                            <!-- Delay stage status -->
+                            <GroupBox Header="Delay Stage" Margin="0,10,0,0">
+                                <StackPanel Orientation="Vertical" Margin="10">
+                                    <!-- Position Display -->
+                                    <Grid Margin="0,5,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Position:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+                                            <TextBlock Name="DelayStagePositionText" Text="0.00000" VerticalAlignment="Center"/>
+                                            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
 
-                                <!-- Status Indicator -->
-                                <Grid Margin="0,5,0,5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Status:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
-                                        <Ellipse Name="DelayStageStatusIndicator" Width="15" Height="15" Fill="Red" Margin="5,0,0,0"/>
-                                        <TextBlock Name="DelayStageStatusText" Text="Off" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                    </StackPanel>
-                                </Grid>
+                                    <!-- Status Indicator -->
+                                    <Grid Margin="0,5,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Status:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+                                            <Ellipse Name="DelayStageStatusIndicator" Width="15" Height="15" Fill="Red" Margin="5,0,0,0"/>
+                                            <TextBlock Name="DelayStageStatusText" Text="Off" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
 
-                                <!-- Reset Button -->
-                                <Button Name="ResetDelayStageButton" 
+                                    <!-- Reset Button -->
+                                    <Button Name="ResetDelayStageButton" 
                                     Content="Reset" 
                                     Width="120" 
                                     Margin="0,10,0,5" 
                                     Click="ResetDelayStageButton_Click"
                                     ToolTip="Resets the ESP300 controller - may take 20 seconds to complete"/>
 
-                            </StackPanel>
+                                </StackPanel>
 
 
-                        </GroupBox>
+                            </GroupBox>
 
 
-                        <!-- Experiment Status Panel at the Bottom -->
-                        <GroupBox Header="Experiment Status" Margin="0,10,0,0">
-                            <StackPanel Orientation="Vertical" Margin="10">
+                            <!-- Experiment Status Panel at the Bottom -->
+                            <GroupBox Header="Experiment Status" Margin="0,10,0,0">
+                                <StackPanel Orientation="Vertical" Margin="10">
 
-                                <!-- Experiment On/Off Status with Color Indicator -->
-                                <Grid Margin="0,5,0,5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <!-- Label column -->
-                                        <ColumnDefinition Width="Auto" />
-                                        <!-- Indicator column -->
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Experiment:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
-                                        <Ellipse Name="ExperimentStatusIndicator" Width="15" Height="15" Fill="Red" Margin="5,0,0,0"/>
-                                        <TextBlock Name="ExperimentStatusText" Text="Off" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                    </StackPanel>
-                                </Grid>
+                                    <!-- Experiment On/Off Status with Color Indicator -->
+                                    <Grid Margin="0,5,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <!-- Label column -->
+                                            <ColumnDefinition Width="Auto" />
+                                            <!-- Indicator column -->
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Experiment:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+                                            <Ellipse Name="ExperimentStatusIndicator" Width="15" Height="15" Fill="Red" Margin="5,0,0,0"/>
+                                            <TextBlock Name="ExperimentStatusText" Text="Off" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
 
-                                <!-- ExtClk On/Off Status with Color Indicator -->
-                                <Grid Margin="0,5,0,5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <!-- Label column -->
-                                        <ColumnDefinition Width="Auto" />
-                                        <!-- Indicator column -->
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="External Clock:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
-                                        <Ellipse Name="ExtClkStatusIndicator" Width="15" Height="15" Fill="Red" Margin="5,0,0,0"/>
-                                        <TextBlock Name="ExtClkStatusText" Text="Off" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                    </StackPanel>
-                                </Grid>
+                                    <!-- ExtClk On/Off Status with Color Indicator -->
+                                    <Grid Margin="0,5,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <!-- Label column -->
+                                            <ColumnDefinition Width="Auto" />
+                                            <!-- Indicator column -->
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="External Clock:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+                                            <Ellipse Name="ExtClkStatusIndicator" Width="15" Height="15" Fill="Red" Margin="5,0,0,0"/>
+                                            <TextBlock Name="ExtClkStatusText" Text="Off" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
 
-                                <!-- Elapsed Time Display -->
-                                <Grid Margin="0,5,0,5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <!-- Label column -->
-                                        <ColumnDefinition Width="Auto" />
-                                        <!-- Time display column -->
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Elapsed Time:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <TextBlock Name="ElapsedTimeText" Grid.Column="1" Text="00:00:00" VerticalAlignment="Center"/>
-                                </Grid>
+                                    <!-- Elapsed Time Display -->
+                                    <Grid Margin="0,5,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <!-- Label column -->
+                                            <ColumnDefinition Width="Auto" />
+                                            <!-- Time display column -->
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Elapsed Time:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock Name="ElapsedTimeText" Grid.Column="1" Text="00:00:00" VerticalAlignment="Center"/>
+                                    </Grid>
 
-                            </StackPanel>
-                        </GroupBox>
+                                </StackPanel>
+                            </GroupBox>
                             <GroupBox Header="Log File Metadata" Margin="0,10,0,0">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
@@ -315,328 +316,328 @@
 
                         </StackPanel>
 
-                    <!-- Container for charts in the third column -->
-                    <Grid Grid.Row="0" Grid.Column="3">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                        <!-- Container for charts in the third column -->
+                        <Grid Grid.Row="0" Grid.Column="3">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
 
-                        <!-- SignalChart in the first row of the second column -->
-                        <lvc:CartesianChart Name="SignalChart"
+                            <!-- SignalChart in the first row of the second column -->
+                            <lvc:CartesianChart Name="SignalChart"
                                             LegendLocation="Bottom"
                                             Grid.Row="0" Margin="10">
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="Sample Index"/>
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Signal Amplitude (mV)"/>
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis Title="Sample Index"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis Title="Signal Amplitude (mV)"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
 
-                        <!-- HeatmapChart in the second row of the second column -->
-                        <lvc:CartesianChart Name="HeatmapChart"
+                            <!-- HeatmapChart in the second row of the second column -->
+                            <lvc:CartesianChart Name="HeatmapChart"
                                             Grid.Row="1" Margin="10">
-                            <lvc:CartesianChart.Series>
-                                <lvc:HeatSeries Name="HeatSeries"
+                                <lvc:CartesianChart.Series>
+                                    <lvc:HeatSeries Name="HeatSeries"
                                                 DataLabels="True"
                                                 Title="Cross Correlation">
-                                    <lvc:HeatSeries.GradientStopCollection>
-                                        <GradientStop Offset="0" Color="#001f3f"/>
-                                        <GradientStop Offset=".25" Color="#2c3e50"/>
-                                        <GradientStop Offset=".50" Color="#444444"/>
-                                        <GradientStop Offset=".75" Color="#7f1d1d"/>
-                                        <GradientStop Offset="1" Color="#b34700"/>
-                                    </lvc:HeatSeries.GradientStopCollection>
-                                </lvc:HeatSeries>
-                            </lvc:CartesianChart.Series>
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="Column" Labels="0,1,2,3,4,5,6,7"/>
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Row" Labels="0,1,2,3,4,5,6,7"/>
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
+                                        <lvc:HeatSeries.GradientStopCollection>
+                                            <GradientStop Offset="0" Color="#001f3f"/>
+                                            <GradientStop Offset=".25" Color="#2c3e50"/>
+                                            <GradientStop Offset=".50" Color="#444444"/>
+                                            <GradientStop Offset=".75" Color="#7f1d1d"/>
+                                            <GradientStop Offset="1" Color="#b34700"/>
+                                        </lvc:HeatSeries.GradientStopCollection>
+                                    </lvc:HeatSeries>
+                                </lvc:CartesianChart.Series>
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis Title="Column" Labels="0,1,2,3,4,5,6,7"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis Title="Row" Labels="0,1,2,3,4,5,6,7"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
 
-                        <!-- PixelChart in the third row -->
-                        <lvc:CartesianChart Name="PixelChart"
+                            <!-- PixelChart in the third row -->
+                            <lvc:CartesianChart Name="PixelChart"
                                             LegendLocation="Bottom"
                                             Grid.Row="2" Margin="10">
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="Time"/>
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Pixel Value"
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis Title="Time"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis Title="Pixel Value"
                                           />
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
                     </Grid>
-                </Grid>
                 </ScrollViewer>
-                
+
             </TabItem>
 
             <!-- Autobalance Page -->
             <TabItem Header="Autobalance" Margin="-2,-3,-2,1">
                 <ScrollViewer>
-                <Grid>
-                    <!-- Define columns -->
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="34" />
-                        <ColumnDefinition Width="166"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                    <Grid>
+                        <!-- Define columns -->
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="34" />
+                            <ColumnDefinition Width="166"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Define rows -->
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <!-- Left Control Panel -->
-                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="10,10,10,10" Grid.ColumnSpan="2">
-                        <!-- Autobalance Control Panel -->
-                        <GroupBox Header="Autobalance Control">
-                            <StackPanel>
-                                <!-- Threshold Input -->
-                                <TextBlock Text="Threshold:" Margin="0,10,0,0"/>
-                                <TextBox Name="ThresholdInput" Width="100" Text="0" />
-                                <TextBlock Text="Number of Segments:" Margin="0,10,0,0"/>
-                                <TextBox Name="NumSegments" Width="100" Text="4"/>
-
-                                <!-- Start Autobalance Button -->
-                                <Button Content="Start" Width="150" Click="StartAutobalanceButton_Click" Margin="0,5,0,5"/>
-                                <Button Content="Terminate" Width="150" Click="TerminateAutobalanceButton_Click" Margin="0,5"/>
-                            </StackPanel>
-                        </GroupBox>
-
-                        <!-- Additional controls if necessary -->
-                    </StackPanel>
-
-                    <!-- Right Side Charts -->
-                    <Grid Grid.Row="1" Grid.Column="3">
+                        <!-- Define rows -->
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!-- SignalChartAutobalance -->
-                        <lvc:CartesianChart Name="SignalChartAutobalance"
+                        <!-- Left Control Panel -->
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="10,10,10,10" Grid.ColumnSpan="2">
+                            <!-- Autobalance Control Panel -->
+                            <GroupBox Header="Autobalance Control">
+                                <StackPanel>
+                                    <!-- Threshold Input -->
+                                    <TextBlock Text="Threshold:" Margin="0,10,0,0"/>
+                                    <TextBox Name="ThresholdInput" Width="100" Text="0" />
+                                    <TextBlock Text="Number of Segments:" Margin="0,10,0,0"/>
+                                    <TextBox Name="NumSegments" Width="100" Text="4"/>
+
+                                    <!-- Start Autobalance Button -->
+                                    <Button Content="Start" Width="150" Click="StartAutobalanceButton_Click" Margin="0,5,0,5"/>
+                                    <Button Content="Terminate" Width="150" Click="TerminateAutobalanceButton_Click" Margin="0,5"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Additional controls if necessary -->
+                        </StackPanel>
+
+                        <!-- Right Side Charts -->
+                        <Grid Grid.Row="1" Grid.Column="3">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- SignalChartAutobalance -->
+                            <lvc:CartesianChart Name="SignalChartAutobalance"
                                             LegendLocation="Bottom"
                                             Grid.Row="0" Margin="10">
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="Sample Index"/>
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Signal Amplitude (mV)"/>
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis Title="Sample Index"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis Title="Signal Amplitude (mV)"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
 
-                        <!-- MotorPositionChart -->
-                        <lvc:CartesianChart Name="MotorPositionChart"
+                            <!-- MotorPositionChart -->
+                            <lvc:CartesianChart Name="MotorPositionChart"
                                             Grid.Row="1" Margin="10">
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="Steps"/>
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Motor Position"/>
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis Title="Steps"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis Title="Motor Position"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
 
-                        <!-- FlatnessChart -->
-                        <lvc:CartesianChart Name="FlatnessChart"
+                            <!-- FlatnessChart -->
+                            <lvc:CartesianChart Name="FlatnessChart"
                                             Grid.Row="2" Margin="10">
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="Steps"/>
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Flatness Metric"/>
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis Title="Steps"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis Title="Flatness Metric"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
                     </Grid>
-                </Grid>
                 </ScrollViewer>
             </TabItem>
 
             <TabItem Header="ESP Position">
                 <ScrollViewer>
-                <Grid Margin="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <!-- Controls Column -->
-                        <ColumnDefinition Width="*" />
-                        <!-- Chart Column -->
-                    </Grid.ColumnDefinitions>
+                    <Grid Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <!-- Controls Column -->
+                            <ColumnDefinition Width="*" />
+                            <!-- Chart Column -->
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Left Panel: Controls -->
-                    <StackPanel Orientation="Vertical" Grid.Column="0" Margin="0,0,20,0">
+                        <!-- Left Panel: Controls -->
+                        <StackPanel Orientation="Vertical" Grid.Column="0" Margin="0,0,20,0">
 
-                        <!-- Group 1: Motion Settings -->
-                        <GroupBox Header="Motion Settings" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
+                            <!-- Group 1: Motion Settings -->
+                            <GroupBox Header="Motion Settings" Margin="0,0,0,10">
+                                <StackPanel Margin="10">
 
-                                <TextBlock Text="Velocity (VA)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="VAInput" Width="100"/>
+                                    <TextBlock Text="Velocity (VA)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="VAInput" Width="100"/>
 
-                                <TextBlock Text="Velocity Limit (VU)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="VUInput" Width="100"/>
+                                    <TextBlock Text="Velocity Limit (VU)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="VUInput" Width="100"/>
 
-                                <TextBlock Text="Acceleration (AC)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="ACInput" Width="100"/>
+                                    <TextBlock Text="Acceleration (AC)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="ACInput" Width="100"/>
 
-                                <TextBlock Text="Max Acc/Dec (AU)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="AUInput" Width="100"/>
+                                    <TextBlock Text="Max Acc/Dec (AU)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="AUInput" Width="100"/>
 
-                                <TextBlock Text="Deceleration (AG)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="AGInput" Width="100"/>
+                                    <TextBlock Text="Deceleration (AG)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="AGInput" Width="100"/>
 
-                                <Button Content="Apply Motion Settings" Width="150" Margin="0,10,0,0" Click="ApplyMotionSettings_Click"/>
-                                <Button Content="Read Current Motion Settings" Width="150" Margin="0,5,0,0" Click="ReadMotionSettings_Click"/>
-                            </StackPanel>
-                        </GroupBox>
+                                    <Button Content="Apply Motion Settings" Width="150" Margin="0,10,0,0" Click="ApplyMotionSettings_Click"/>
+                                    <Button Content="Read Current Motion Settings" Width="150" Margin="0,5,0,0" Click="ReadMotionSettings_Click"/>
+                                </StackPanel>
+                            </GroupBox>
 
-                        <!-- Group 2: Basic Commands -->
-                        <GroupBox Header="Basic Commands" Margin="0,0,0,10">
-                            <StackPanel Margin="10">
+                            <!-- Group 2: Basic Commands -->
+                            <GroupBox Header="Basic Commands" Margin="0,0,0,10">
+                                <StackPanel Margin="10">
 
-                                <Button Content="Stop Motion" Width="150" Margin="0,5,0,0" Click="ESP_StopMotion_Click"/>
-                                <Button Content="Abort Program" Width="150" Margin="0,5,0,0" Click="ESP_AbortProgram_Click"/>
-                                <Button Content="Reset Controller" Width="150" Margin="0,5,0,0" Click="ESP_ResetController_Click"/>
-                                <Button x:Name="EnableMotorButton" Content="Enable Motor" Click="EnableMotorButton_Click" Width="120" Height="30" Margin="5"/>
+                                    <Button Content="Stop Motion" Width="150" Margin="0,5,0,0" Click="ESP_StopMotion_Click"/>
+                                    <Button Content="Abort Program" Width="150" Margin="0,5,0,0" Click="ESP_AbortProgram_Click"/>
+                                    <Button Content="Reset Controller" Width="150" Margin="0,5,0,0" Click="ESP_ResetController_Click"/>
+                                    <Button x:Name="EnableMotorButton" Content="Enable Motor" Click="EnableMotorButton_Click" Width="120" Height="30" Margin="5"/>
 
-                                <TextBlock Text="Move to Absolute Position (PA)" Margin="0,10,0,0"/>
-                                <TextBox x:Name="PAInput" Width="100"/>
-                                <Button Content="Move to Position" Width="150" Margin="0,5,0,0" Click="ESP_MoveToPosition_Click"/>
-                            </StackPanel>
-                        </GroupBox>
+                                    <TextBlock Text="Move to Absolute Position (PA)" Margin="0,10,0,0"/>
+                                    <TextBox x:Name="PAInput" Width="100"/>
+                                    <Button Content="Move to Position" Width="150" Margin="0,5,0,0" Click="ESP_MoveToPosition_Click"/>
+                                </StackPanel>
+                            </GroupBox>
 
-                        <!-- Group 3: Auto Cycle Program -->
-                        <GroupBox Header="Auto ESP Cycle Program">
-                            <StackPanel Margin="10">
+                            <!-- Group 3: Auto Cycle Program -->
+                            <GroupBox Header="Auto ESP Cycle Program">
+                                <StackPanel Margin="10">
 
-                                <TextBlock Text="Start Point (mm)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="StartPointInput" Width="100"/>
+                                    <TextBlock Text="Start Point (mm)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="StartPointInput" Width="100"/>
 
-                                <TextBlock Text="End Point (mm)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="EndPointInput" Width="100"/>
+                                    <TextBlock Text="End Point (mm)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="EndPointInput" Width="100"/>
 
-                                <TextBlock Text="Number of Loops" Margin="0,5,0,0"/>
-                                <TextBox x:Name="LoopCountInput" Width="100"/>
+                                    <TextBlock Text="Number of Loops" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="LoopCountInput" Width="100"/>
 
-                                <TextBlock Text="Dwell Time (ms)" Margin="0,5,0,0"/>
-                                <TextBox x:Name="DwellTimeInput" Width="100"/>
+                                    <TextBlock Text="Dwell Time (ms)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="DwellTimeInput" Width="100"/>
 
-                                <Button Content="Run Auto Cycle" Width="150" Margin="0,10,0,0" Click="RunAutoCycle_Click"/>
+                                    <Button Content="Run Auto Cycle" Width="150" Margin="0,10,0,0" Click="RunAutoCycle_Click"/>
 
 
-                            </StackPanel>
-                        </GroupBox>
+                                </StackPanel>
+                            </GroupBox>
 
-                    </StackPanel>
+                        </StackPanel>
 
-                    <!-- Right Panel: ESP Position Chart and Update Controls -->
-                    <StackPanel Grid.Column="1" Orientation="Vertical">
+                        <!-- Right Panel: ESP Position Chart and Update Controls -->
+                        <StackPanel Grid.Column="1" Orientation="Vertical">
 
-                        <lvc:CartesianChart x:Name="ESPPositionChart"
+                            <lvc:CartesianChart x:Name="ESPPositionChart"
                                 Height="500" Margin="0"
                                 LegendLocation="Right">
-                            <lvc:CartesianChart.Series>
-                                <lvc:LineSeries Title="ESP Position"
+                                <lvc:CartesianChart.Series>
+                                    <lvc:LineSeries Title="ESP Position"
                                     PointGeometrySize="5"
                                     StrokeThickness="2"
                                     Fill="Transparent"/>
-                            </lvc:CartesianChart.Series>
-                        </lvc:CartesianChart>
+                                </lvc:CartesianChart.Series>
+                            </lvc:CartesianChart>
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
-                            <Button Content="Start ESP Update" Width="150" Height="30" Margin="5" Click="StartESPUpdate_Click"/>
-                            <Button Content="Stop ESP Update" Width="150" Height="30" Margin="5" Click="StopESPUpdate_Click"/>
-                            <Button x:Name="RunStoredProgramButton" 
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                <Button Content="Start ESP Update" Width="150" Height="30" Margin="5" Click="StartESPUpdate_Click"/>
+                                <Button Content="Stop ESP Update" Width="150" Height="30" Margin="5" Click="StopESPUpdate_Click"/>
+                                <Button x:Name="RunStoredProgramButton" 
 Content="Run Program 10" 
 Width="150" Height="30" Margin="5"
 Click="RunStoredProgramButton_Click" />
-                            <Button x:Name="RunStoredProgram1Button"
+                                <Button x:Name="RunStoredProgram1Button"
         Content="Run Program 1"
         Width="150" Height="30" Margin="5"
         Click="RunStoredProgram1Button_Click" />
 
+                            </StackPanel>
+
                         </StackPanel>
 
-                    </StackPanel>
-
-                </Grid>
+                    </Grid>
                 </ScrollViewer>
             </TabItem>
-        
+
             <TabItem Header="NIDaq Plot">
                 <ScrollViewer>
-                <Grid Margin="10">
-                    <StackPanel Orientation="Vertical">
+                    <Grid Margin="10">
+                        <StackPanel Orientation="Vertical">
 
-                        <!-- DAQ Buttons -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
-                            <Button x:Name="ConnectDAQButton" Content="Connect DAQ Service" Width="150" Height="40" Margin="5" Click="ConnectDAQButton_Click"/>
-                            <Button Content="Release DAQ Pipe" Width="150" Height="30" Margin="5" Click="ReleaseDAQPipeButton_Click" />
-                            <Button x:Name="StartDAQButton" Content="Start DAQ" Width="100" Height="40" Margin="5" Click="StartDAQButton_Click"/>
-                            <Button x:Name="StopDAQButton" Content="Stop DAQ" Width="100" Height="40" Margin="5" Click="StopDAQButton_Click"/>
-                            <Button Content="Save AI5 to CSV" Width="150" Height="30" Margin="5" Click="SaveAI5DataToCSV_Click" />
-                            <Button Content="Start/Stop MotorVsAI5 Auto-Log" Click="ToggleMotorVsAI5AutoLog_Click" Width="250" Height="30" Margin="5"/>
+                            <!-- DAQ Buttons -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
+                                <Button x:Name="ConnectDAQButton" Content="Connect DAQ Service" Width="150" Height="40" Margin="5" Click="ConnectDAQButton_Click"/>
+                                <Button Content="Release DAQ Pipe" Width="150" Height="30" Margin="5" Click="ReleaseDAQPipeButton_Click" />
+                                <Button x:Name="StartDAQButton" Content="Start DAQ" Width="100" Height="40" Margin="5" Click="StartDAQButton_Click"/>
+                                <Button x:Name="StopDAQButton" Content="Stop DAQ" Width="100" Height="40" Margin="5" Click="StopDAQButton_Click"/>
+                                <Button Content="Save AI5 to CSV" Width="150" Height="30" Margin="5" Click="SaveAI5DataToCSV_Click" />
+                                <Button Content="Start/Stop MotorVsAI5 Auto-Log" Click="ToggleMotorVsAI5AutoLog_Click" Width="250" Height="30" Margin="5"/>
+                            </StackPanel>
+
+                            <!-- DAQ Chart and Channel Toggles -->
+                            <lvc:CartesianChart x:Name="DAQChart" Height="250" LegendLocation="Right" Margin="10"/>
+
+                            <WrapPanel Orientation="Horizontal" Margin="10,0,10,10">
+                                <CheckBox Content="AI0" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="0" Margin="5"/>
+                                <CheckBox Content="AI1" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="1" Margin="5"/>
+                                <CheckBox Content="AI2" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="2" Margin="5"/>
+                                <CheckBox Content="AI3" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="3" Margin="5"/>
+                                <CheckBox Content="AI4" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="4" Margin="5"/>
+                                <CheckBox Content="AI5" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="5" Margin="5"/>
+                            </WrapPanel>
+
+                            <!-- AI5 Monitor -->
+                            <lvc:CartesianChart x:Name="AI5TimeSeriesChart" Height="200" Margin="10" LegendLocation="Right" />
+
+                            <!-- Motor vs AI5 -->
+                            <lvc:CartesianChart x:Name="MotorVsAI5Chart" Height="200" Margin="10">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis Title="ESP Position (mm)" />
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis Title="AI5 Amplitude (V)" />
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+
                         </StackPanel>
-
-                        <!-- DAQ Chart and Channel Toggles -->
-                        <lvc:CartesianChart x:Name="DAQChart" Height="250" LegendLocation="Right" Margin="10"/>
-
-                        <WrapPanel Orientation="Horizontal" Margin="10,0,10,10">
-                            <CheckBox Content="AI0" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="0" Margin="5"/>
-                            <CheckBox Content="AI1" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="1" Margin="5"/>
-                            <CheckBox Content="AI2" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="2" Margin="5"/>
-                            <CheckBox Content="AI3" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="3" Margin="5"/>
-                            <CheckBox Content="AI4" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="4" Margin="5"/>
-                            <CheckBox Content="AI5" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="5" Margin="5"/>
-                        </WrapPanel>
-
-                        <!-- AI5 Monitor -->
-                        <lvc:CartesianChart x:Name="AI5TimeSeriesChart" Height="200" Margin="10" LegendLocation="Right" />
-
-                        <!-- Motor vs AI5 -->
-                        <lvc:CartesianChart x:Name="MotorVsAI5Chart" Height="200" Margin="10">
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="ESP Position (mm)" />
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="AI5 Amplitude (V)" />
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
-
-                    </StackPanel>
-                </Grid>
+                    </Grid>
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="PMT">
                 <ScrollViewer>
 
 
-                <!-- ============================================== -->
-                <!-- AI5 Monitoring Section (Like NIPowerChecker) -->
-                <!-- ============================================== -->
+                    <!-- ============================================== -->
+                    <!-- AI5 Monitoring Section (Like NIPowerChecker) -->
+                    <!-- ============================================== -->
 
-                <!-- =================== AI5 Monitoring (Smoothed 10Hz) =================== -->
+                    <!-- =================== AI5 Monitoring (Smoothed 10Hz) =================== -->
 
-                <Grid Margin="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="2*" />
-                        <!-- Time Series Chart -->
-                        <RowDefinition Height="*" />
-                        <!-- Stats Table -->
-                    </Grid.RowDefinitions>
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="2*" />
+                            <!-- Time Series Chart -->
+                            <RowDefinition Height="*" />
+                            <!-- Stats Table -->
+                        </Grid.RowDefinitions>
 
 
 
-                    <!-- AI5 Stats Table -->
-                    <DataGrid x:Name="AI5StatsTable"
+                        <!-- AI5 Stats Table -->
+                        <DataGrid x:Name="AI5StatsTable"
               Grid.Row="1"
               AutoGenerateColumns="False"
               HeadersVisibility="Column"
@@ -644,25 +645,25 @@ Click="RunStoredProgramButton_Click" />
               Margin="10"
               CanUserAddRows="False"
               IsReadOnly="True">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Channel" Width="*" />
-                            <DataGridTextColumn Header="Mean (V)" Width="*" />
-                            <DataGridTextColumn Header="Std Dev (V)" Width="*" />
-                            <DataGridTextColumn Header="Min (V)" Width="*" />
-                            <DataGridTextColumn Header="Max (V)" Width="*" />
-                            <DataGridTextColumn Header="Power (mW)" Width="*" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Channel" Width="*" />
+                                <DataGridTextColumn Header="Mean (V)" Width="*" />
+                                <DataGridTextColumn Header="Std Dev (V)" Width="*" />
+                                <DataGridTextColumn Header="Min (V)" Width="*" />
+                                <DataGridTextColumn Header="Max (V)" Width="*" />
+                                <DataGridTextColumn Header="Power (mW)" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
 
                 </ScrollViewer>
 
             </TabItem>
 
-            
-            
-            
-            
+
+
+
+
             <!--Alternate Tab for the Message Box-->
             <TabItem Header="Messages">
                 <Grid>
@@ -697,4 +698,42 @@ Click="RunStoredProgramButton_Click" />
             </Grid>
         </GroupBox>-->
     </Grid>
+    
+    <!--UI Elements-->
+    <Window.Resources>
+        <Style TargetType="TabControl">
+            <Style.Resources>
+                <Style TargetType="Border">
+                    <Setter Property="CornerRadius" Value="10"></Setter>
+                    <Setter Property="BorderThickness" Value="5"></Setter>
+                </Style>
+            </Style.Resources>
+        </Style>
+        
+        
+        <Style TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+
+            <Style.Resources>
+                <Style TargetType="Border">
+                    <Setter Property="CornerRadius" Value="5"></Setter>
+                </Style>
+            </Style.Resources>
+        </Style>
+
+        <Style TargetType="GroupBox">
+
+            <Style.Resources>
+                <Style TargetType="Border">
+                    <Setter Property="CornerRadius" Value="20"></Setter>
+                    <Setter Property="BorderBrush" Value="AliceBlue"></Setter>
+                </Style>
+            </Style.Resources>
+        </Style>
+
+        <Style TargetType="ScrollViewer">
+            <Setter Property="VerticalScrollBarVisibility" Value="Hidden"></Setter>
+        </Style>
+    </Window.Resources>
 </Window>
+
