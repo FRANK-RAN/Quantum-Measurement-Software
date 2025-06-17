@@ -722,11 +722,13 @@ Click="RunStoredProgramButton_Click" />
         </Style>
 
         <Style TargetType="GroupBox">
+            
 
             <Style.Resources>
                 <Style TargetType="Border">
+                    
                     <Setter Property="CornerRadius" Value="20"></Setter>
-                    <Setter Property="BorderBrush" Value="AliceBlue"></Setter>
+                   
                 </Style>
             </Style.Resources>
         </Style>

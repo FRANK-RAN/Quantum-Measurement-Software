@@ -149,7 +149,7 @@ namespace Quantum_measurement_UI
         /// <param name="command">Command to send</param>
         public void SendCommand(string command)
         {
-            formattedIO.WriteLine(command);
+            formattedIO?.WriteLine(command);
         }
 
         /// <summary>

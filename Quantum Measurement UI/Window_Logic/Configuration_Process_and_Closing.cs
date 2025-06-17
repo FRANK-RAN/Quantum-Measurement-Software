@@ -136,7 +136,7 @@ namespace Quantum_measurement_UI
         {
             try
             {
-                string programName = "MotorScan";
+                // Program name: "MotorScan";
 
                 string axisPrefix = esp300Controller.Axis.ToString();
 
@@ -508,19 +508,18 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private void UpdateAI5TimeSeriesChart()
+        private void UpdateAI5TimeSeriesChart() // TODO: Make this method Async to make updating the chart more precise
         {
 
-            //AI5TimeSeriesValues?.Remove(0); // Clear if not null
+            //AI5TimeSeriesValues?.Remove(0); Chart may work faster if we limit the size to be 10000 points
 
             //double t0 = DateTime.Now.TimeOfDay.TotalSeconds;
             double dt = 0.001; // Convert each point to seconds
 
             
-            AI5TimeSeriesValues?.Add(new ObservablePoint(
+            AI5TimeSeriesValues?.Add(new ObservablePoint( // Add an observable point for the last updated value in the Window Data
                 timeElapsed * dt,
-                ai5CurrentWindowData[^1]));
-            
+                ai5CurrentWindowData[^1]));          
         }
 
 
@@ -529,6 +528,7 @@ namespace Quantum_measurement_UI
             ai5CumulativeData.Clear();
             ai5CurrentWindowData.Clear();
             AI5HistogramValues.Clear();
+            timeElapsed = 0;
         }
         private void ToggleMotorVsAI5AutoLog_Click(object sender, RoutedEventArgs e)
         {
