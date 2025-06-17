@@ -573,7 +573,7 @@ Click="RunStoredProgramButton_Click" />
             </TabItem>
 
             <TabItem Header="NIDaq Plot">
-                <ScrollViewer>
+                <ScrollViewer >
                     <Grid Margin="10">
                         <StackPanel Orientation="Vertical">
 
@@ -585,6 +585,14 @@ Click="RunStoredProgramButton_Click" />
                                 <Button x:Name="StopDAQButton" Content="Stop DAQ" Width="100" Height="40" Margin="5" Click="StopDAQButton_Click"/>
                                 <Button Content="Save AI5 to CSV" Width="150" Height="30" Margin="5" Click="SaveAI5DataToCSV_Click" />
                                 <Button Content="Start/Stop MotorVsAI5 Auto-Log" Click="ToggleMotorVsAI5AutoLog_Click" Width="250" Height="30" Margin="5"/>
+                                <ComboBox Name="Register_Selection" Width="60" Height="20" Margin="5" SelectedIndex="0">
+                                    <ComboBoxItem Content="ai0" />
+                                    <ComboBoxItem Content="ai1" />
+                                    <ComboBoxItem Content="ai2" />
+                                    <ComboBoxItem Content="ai3" />
+                                    <ComboBoxItem Content="ai4" />
+                                    <ComboBoxItem Content="ai5" />
+                                </ComboBox>
                             </StackPanel>
 
                             <!-- DAQ Chart and Channel Toggles -->

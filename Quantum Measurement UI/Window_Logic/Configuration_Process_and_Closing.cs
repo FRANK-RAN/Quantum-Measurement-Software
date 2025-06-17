@@ -310,8 +310,10 @@ namespace Quantum_measurement_UI
                     daqPipe = new PipeClient();
                     await daqPipe.ConnectAsync();
 
-                    // 🔥 Start only AI5                   
-                    string response = await daqPipe.SendCommandAsync("StartAI ai1");
+                    // 🔥 Start only AI5
+                    string index = Register_Selection.Text;
+                    AppendMessage("Connected to " + index);
+                    string response = await daqPipe.SendCommandAsync($"StartAI {index}");
                     AppendMessage("Connected to QuantumDAQService!\n" + response);                   
                                        
                     MessageBox.Show("Connected to QuantumDAQService!");

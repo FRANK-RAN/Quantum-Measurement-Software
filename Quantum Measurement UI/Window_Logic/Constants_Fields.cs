@@ -179,9 +179,12 @@ namespace Quantum_measurement_UI
             sum -= values[^1]; // remove the value at the end of the list
             sum += value;
 
-            for (int i = 0; i < occupied-1; i++)
+            double toShift = value;
+            for (int i = 0; i < occupied;  i++)
             {
-                values[i+1] = values[i]; // shift all values to the right
+                double temp = values[i];
+                values[i] = toShift;
+                toShift = temp;
             }
 
             if (occupied < values.Length)
@@ -189,7 +192,6 @@ namespace Quantum_measurement_UI
                 occupied++;
             }
 
-            values[0] = value; // insert the value at the beggining of the block
             avg = sum/occupied;
         }
     }
