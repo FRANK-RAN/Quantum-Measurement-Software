@@ -54,14 +54,31 @@
                                     <TextBlock Text="Relative Move (steps):"/>
                                     <TextBox Name="RelativeSteps" Width="100" Text="0" />
                                     <Button Content="Move Relative" Width="150" Click="MoveRelativeButton_Click" Margin="0,5,0,5"/>
-                                    <Button Content="+10" Width="60" Margin="5"
-                Click="MovePlus10_Click"/>
-                                    <Button Content="-10" Width="60" Margin="5"
-                Click="MoveMinus10_Click"/>
-                                    <Button Content="+1" Width="60" Margin="5"
-                Click="MovePlus1_Click"/>
-                                    <Button Content="-1" Width="60" Margin="5"
-                Click="MoveMinus1_Click"/>
+                                    <Grid Margin="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Motor 1 -->
+                                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                            <Label Content="Motor 1" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                            <Button Content="+10" Width="60" Margin="5" Click="MovePlus10_Click"/>
+                                            <Button Content="-10" Width="60" Margin="5" Click="MoveMinus10_Click"/>
+                                            <Button Content="+1" Width="60" Margin="5" Click="MovePlus1_Click"/>
+                                            <Button Content="-1" Width="60" Margin="5" Click="MoveMinus1_Click"/>
+                                        </StackPanel>
+
+                                        <!-- Motor 2 -->
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                            <Label Content="Motor 2" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                            <Button Content="+10" Width="60" Margin="5" Click="MovePlus10_Click_2"/>
+                                            <Button Content="-10" Width="60" Margin="5" Click="MoveMinus10_Click_2"/>
+                                            <Button Content="+1" Width="60" Margin="5" Click="MovePlus1_Click_2"/>
+                                            <Button Content="-1" Width="60" Margin="5" Click="MoveMinus1_Click_2"/>
+                                        </StackPanel>
+                                    </Grid>
+
                                     <!-- Move to Target -->
                                     <TextBlock Text="Position Target (steps):"/>
                                     <TextBox Name="PositionTarget" Width="100" Text="0" />
@@ -184,6 +201,8 @@
                                 HorizontalAlignment="Center"
                                 Margin="0,5,0,10"
                                 Click="TerminateButton_Click"/>
+                                    <Button Content="Run FFT" Click="RunFFTButton_Click" Margin="5" Width="100"/>
+                                    <Button Content="Plot FFT Result" Click="PlotFFTResult_Click" Width="120"/>
                                 </StackPanel>
                             </GroupBox>
 
@@ -585,18 +604,10 @@ Click="RunStoredProgramButton_Click" />
                                 <Button x:Name="StopDAQButton" Content="Stop DAQ" Width="100" Height="40" Margin="5" Click="StopDAQButton_Click"/>
                                 <Button Content="Save AI5 to CSV" Width="150" Height="30" Margin="5" Click="SaveAI5DataToCSV_Click" />
                                 <Button Content="Start/Stop MotorVsAI5 Auto-Log" Click="ToggleMotorVsAI5AutoLog_Click" Width="250" Height="30" Margin="5"/>
-                                <ComboBox Name="Register_Selection" Width="60" Height="20" Margin="5" SelectedIndex="0">
-                                    <ComboBoxItem Content="ai0" />
-                                    <ComboBoxItem Content="ai1" />
-                                    <ComboBoxItem Content="ai2" />
-                                    <ComboBoxItem Content="ai3" />
-                                    <ComboBoxItem Content="ai4" />
-                                    <ComboBoxItem Content="ai5" />
-                                </ComboBox>
                             </StackPanel>
 
                             <!-- DAQ Chart and Channel Toggles -->
-                            <lvc:CartesianChart x:Name="DAQChart" Height="250" LegendLocation="Right" Margin="10"/>
+                            <lvc:CartesianChart x:Name="DAQChart" Height="400" LegendLocation="Right" Margin="10"/>
 
                             <WrapPanel Orientation="Horizontal" Margin="10,0,10,10">
                                 <CheckBox Content="AI0" IsChecked="True" Checked="ChannelToggle_Checked" Unchecked="ChannelToggle_Unchecked" Tag="0" Margin="5"/>
@@ -608,10 +619,10 @@ Click="RunStoredProgramButton_Click" />
                             </WrapPanel>
 
                             <!-- AI5 Monitor -->
-                            <lvc:CartesianChart x:Name="AI5TimeSeriesChart" Height="200" Margin="10" LegendLocation="Right" />
+                            <lvc:CartesianChart x:Name="AI5TimeSeriesChart" Height="400" Margin="10" LegendLocation="Right" />
 
                             <!-- Motor vs AI5 -->
-                            <lvc:CartesianChart x:Name="MotorVsAI5Chart" Height="200" Margin="10">
+                            <lvc:CartesianChart x:Name="MotorVsAI5Chart" Height="400" Margin="10">
                                 <lvc:CartesianChart.AxisX>
                                     <lvc:Axis Title="ESP Position (mm)" />
                                 </lvc:CartesianChart.AxisX>

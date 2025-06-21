@@ -10,6 +10,16 @@ using System.Diagnostics;
 using System.Windows.Controls;
 using QuantumSqueezingUI;
 using System.Collections.ObjectModel;
+using System.Windows.Media.Imaging;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Series;
+using OxyPlot.Wpf;
+using OxyPlot.SkiaSharp;
+using OxyPlot.Annotations;
+using OxyPlot.Legends;
+
+
 
 
 namespace Quantum_measurement_UI
@@ -131,6 +141,272 @@ namespace Quantum_measurement_UI
             motorController.MoveMinus1(esp300Controller.Axis);
         }
 
+        private void MovePlus10_Click_2(object sender, RoutedEventArgs e)
+        {
+            motorController.MovePlus10(2);
+        }
+
+        private void MoveMinus10_Click_2(object sender, RoutedEventArgs e)
+        {
+            motorController.MoveMinus10(2);
+        }
+
+        private void MovePlus1_Click_2(object sender, RoutedEventArgs e)
+        {
+            motorController.MovePlus1(2);
+        }
+
+        private void MoveMinus1_Click_2(object sender, RoutedEventArgs e)
+        {
+            motorController.MoveMinus1(2);
+        }
+
+        private void PlotFFTResult_Click(object sender, RoutedEventArgs e)
+        {
+            PlotSavedFFTResults();
+        }
+
+        /// <summary>
+        /// Event handler for running the FFT executable.
+        /// </summary>
+        private void RunFFTButton_Click(object sender, RoutedEventArgs e)
+        {
+            string fftExePath = @"C:\Quantum Squeezing\Andy test\GageStreamThruGPU-FFT\x64\Debug\GageStreamThruGPU-FFT.exe";
+
+            try
+            {
+                if (!File.Exists(fftExePath))
+                {
+                    AppendMessage("FFT executable not found at: " + fftExePath);
+                    return;
+                }
+
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = fftExePath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                Process fftProcess = Process.Start(startInfo);
+                AppendMessage("Started FFT processing.");
+            }
+            catch (Exception ex)
+            {
+                AppendMessage("Error starting FFT process: " + ex.Message);
+            }
+        }
+
+        private double Interpolate(double[] array, double index)
+        {
+            int i = (int)Math.Floor(index);
+            if (i < 0) return array[0];
+            if (i >= array.Length - 1) return array[^1];
+            double frac = index - i;
+            return array[i] * (1 - frac) + array[i + 1] * frac;
+        }
+
+
+        private List<(double fMHz, double dB)> FindPeaks(double[] freqsMHz, double[] linearPower, int minSeparationMHz = 10, double minProminenceDb = 6)
+        {
+            List<(double fMHz, double dB)> peaks = new();
+
+            int N = linearPower.Length;
+            for (int i = 1; i < N - 1; i++)
+            {
+                double y0 = linearPower[i - 1];
+                double y1 = linearPower[i];
+                double y2 = linearPower[i + 1];
+
+                // Check for local max
+                if (y1 <= y0 || y1 <= y2) continue;
+
+                double dB = 10 * Math.Log10(y1 + 1e-12);
+
+                // Check prominence
+                double baseline = 10 * Math.Log10(Math.Max(y0, y2) + 1e-12);
+                if ((dB - baseline) < minProminenceDb) continue;
+
+                // Parabolic interpolation for sub-bin accuracy
+                double delta = 0.5 * (y0 - y2) / (y0 - 2 * y1 + y2 + 1e-12);
+                double refinedIndex = i + delta;
+
+                if (refinedIndex < 0 || refinedIndex > N - 1) continue;
+
+                double fMHz = Interpolate(freqsMHz, refinedIndex);
+                double refinedPower = Interpolate(linearPower, refinedIndex);
+                double refinedDb = 10 * Math.Log10(refinedPower + 1e-12);
+
+                peaks.Add((fMHz, refinedDb));
+            }
+
+            // Remove peaks that are too close to each other
+            List<(double fMHz, double dB)> filtered = new();
+            foreach (var peak in peaks.OrderByDescending(p => p.dB))
+            {
+                if (filtered.All(p => Math.Abs(p.fMHz - peak.fMHz) > minSeparationMHz))
+                    filtered.Add(peak);
+            }
+
+            return filtered;
+        }
+
+
+
+
+        private async void PlotSavedFFTResults()
+        {
+            string fileA = @"C:\Quantum Squeezing\Quantum-Measurement-Software\Quantum Measurement UI\bin\Debug\net8.0-windows7.0\Data_1_1.bin";
+            string fileB = @"C:\Quantum Squeezing\Quantum-Measurement-Software\Quantum Measurement UI\bin\Debug\net8.0-windows7.0\Data_1_2.bin";
+            int fftLength = 8192;
+            int fftResultSize = fftLength / 2 + 1;
+            double Fs = 608e6;
+
+            AppendMessage("⏳ Processing FFT and saving PNG...");
+
+            (double[] freqs, double[] dbA, double[] dbB,
+   (double fA, double dBA) peakA, (double fB, double dBB) peakB,
+   List<(double f, double dB)> peaksA, List<(double f, double dB)> peaksB) = await Task.Run(() =>
+   {
+       double[] avg1 = LoadAndAverage(fileA, fftResultSize);
+       double[] avg2 = LoadAndAverage(fileB, fftResultSize);
+
+       double[] freqsMHz = Enumerable.Range(0, fftResultSize)
+                           .Select(i => i * Fs / fftLength / 1e6)
+                           .ToArray();
+
+       var allPeaksA = FindPeaks(freqsMHz, avg1, minSeparationMHz: 20, minProminenceDb: 6)
+                           .OrderByDescending(p => p.dB)
+                           .Take(5)
+                           .ToList();
+
+       var allPeaksB = FindPeaks(freqsMHz, avg2, minSeparationMHz: 20, minProminenceDb: 6)
+                           .OrderByDescending(p => p.dB)
+                           .Take(5)
+                           .ToList();
+
+
+
+       var peak1 = allPeaksA.OrderByDescending(p => p.dB).FirstOrDefault();
+       var peak2 = allPeaksB.OrderByDescending(p => p.dB).FirstOrDefault();
+
+       double[] dB1 = avg1.Select(x => 10 * Math.Log10(x + 1e-12)).ToArray();
+       double[] dB2 = avg2.Select(x => 10 * Math.Log10(x + 1e-12)).ToArray();
+
+       return (freqsMHz, dB1, dB2, peak1, peak2, allPeaksA, allPeaksB);
+   });
+
+
+            string title1 = $"Ch1 Peak @ {peakA.fA:F1} MHz ({peakA.dBA:F1} dB)";
+            string title2 = $"Ch2 Peak @ {peakB.fB:F1} MHz ({peakB.dBB:F1} dB)";
+
+            var model = new PlotModel
+            {
+                Title = "FFT Spectrum",
+                Background = OxyColors.White
+            };
+
+            var legend = new Legend
+            {
+                LegendPlacement = LegendPlacement.Inside,
+                LegendPosition = LegendPosition.TopRight,
+                LegendOrientation = LegendOrientation.Vertical,
+                LegendFontSize = 12,
+            };
+
+            model.Legends.Add(legend);  // ✅ Add legend object to the model
+
+
+            model.Axes.Add(new LinearAxis
+            {
+                Position = OxyPlot.Axes.AxisPosition.Bottom,
+                Title = "Frequency (MHz)",
+                Minimum = 0,
+                Maximum = Fs / 2e6,
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Dot
+            });
+
+            model.Axes.Add(new LinearAxis
+            {
+                Position = OxyPlot.Axes.AxisPosition.Left,
+                Title = "Magnitude (dB)",
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Dot
+            });
+
+            model.Series.Add(new OxyPlot.Series.LineSeries
+            {
+                Title = "Channel 1",  // ✅ Will show in legend
+                Color = OxyColors.SkyBlue,
+                StrokeThickness = 1,
+                ItemsSource = freqs.Select((f, i) => new DataPoint(f, dbA[i]))
+            });
+
+            model.Series.Add(new OxyPlot.Series.LineSeries
+            {
+                Title = "Channel 2",  // ✅ Will show in legend
+                Color = OxyColor.FromAColor(180, OxyColors.OrangeRed),  // 180/255 alpha
+                StrokeThickness = 1,
+                ItemsSource = freqs.Select((f, i) => new DataPoint(f, dbB[i]))
+            });
+
+
+
+
+            // === Export to PNG ===
+            string outputPath = @"C:\Quantum Squeezing\fft_result.png";
+            using (var stream = File.Create(outputPath))
+            {
+                var exporter = new OxyPlot.SkiaSharp.PngExporter
+                {
+                    Width = 1920,
+                    Height = 1080,
+                    Dpi = 200
+                };
+                exporter.Export(model, stream);
+            }
+
+            AppendMessage($"✅ FFT chart saved to {outputPath}");
+        }
+
+
+
+        private double[] LoadAndAverage(string path, int fftResultSize, int chunkSize = 1000)
+        {
+            long totalPoints = new FileInfo(path).Length / 8;
+            long totalFrames = totalPoints / fftResultSize;
+
+            double[] avg = new double[fftResultSize];
+            double[] buffer = new double[fftResultSize * chunkSize];
+
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+            using var br = new BinaryReader(fs);
+
+            int framesProcessed = 0;
+
+            while (framesProcessed < totalFrames)
+            {
+                int framesToRead = (int)Math.Min(chunkSize, totalFrames - framesProcessed);
+                int count = framesToRead * fftResultSize;
+
+                byte[] bytes = br.ReadBytes(count * sizeof(double));
+                if (bytes.Length < count * sizeof(double)) break;
+
+                Buffer.BlockCopy(bytes, 0, buffer, 0, bytes.Length);
+
+                for (int i = 0; i < framesToRead; i++)
+                    for (int j = 0; j < fftResultSize; j++)
+                        avg[j] += buffer[i * fftResultSize + j];
+
+                framesProcessed += framesToRead;
+            }
+
+            for (int j = 0; j < fftResultSize; j++)
+                avg[j] /= totalFrames;
+
+            return avg;
+        }
 
         /// <summary>
         /// Event handler for the Move to Target button click.
@@ -177,6 +453,8 @@ namespace Quantum_measurement_UI
                 AppendMessage($"Error: {ex.Message}");
             }
         }
+
+
 
         /// <summary>
         /// Event handler for the Set Zero Position button click.

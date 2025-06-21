@@ -18,6 +18,11 @@ namespace Quantum_measurement_UI
         private int selectedDAQChannel = 0; // Default to Channel 0
         private CancellationTokenSource? motorVsAI5Cts;
         public ChartValues<ObservablePoint>? AI5TimeSeriesValues { get; set; }
+        public ChartValues<ObservablePoint>? AI4TimeSeriesValues { get; set; }
+        public ChartValues<ObservablePoint>? AI3TimeSeriesValues { get; set; }
+        public ChartValues<ObservablePoint>? AI2TimeSeriesValues { get; set; }
+        public ChartValues<ObservablePoint>? AI1TimeSeriesValues { get; set; }
+        public ChartValues<ObservablePoint>? AI0TimeSeriesValues { get; set; }
         public ChartValues<double> AI5HistogramValues { get; set; }
 
 
@@ -59,8 +64,8 @@ namespace Quantum_measurement_UI
 
 
 
-        private List<double> ai5CumulativeData = new List<double>();
-        private List<double> ai5CurrentWindowData = new List<double>();
+        private List<double> ai5CumulativeData = [];
+        private List<double> ai5CurrentWindowData = [];
         private double ai5SampleRate = 10000; // 10kHz
 
 
@@ -176,9 +181,7 @@ namespace Quantum_measurement_UI
 
         public void Push(double value)
         {
-            sum -= values[^1]; // remove the value at the end of the list
-            sum += value;
-
+            
             double toShift = value;
             for (int i = 0; i < occupied;  i++)
             {
@@ -186,6 +189,8 @@ namespace Quantum_measurement_UI
                 values[i] = toShift;
                 toShift = temp;
             }
+            sum -= values[^1]; // remove the value at the end of the list
+            sum += value;
 
             if (occupied < values.Length)
             {
@@ -193,6 +198,7 @@ namespace Quantum_measurement_UI
             }
 
             avg = sum/occupied;
+
         }
     }
 }

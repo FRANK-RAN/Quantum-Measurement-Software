@@ -146,6 +146,11 @@ namespace Quantum_measurement_UI
 };
 
             AI5TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI4TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI3TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI2TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI1TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI0TimeSeriesValues = new ChartValues<ObservablePoint>();
             AI5HistogramValues = new ChartValues<double>();
 
             AI5TimeSeriesChart.Series = new SeriesCollection
@@ -154,6 +159,51 @@ namespace Quantum_measurement_UI
     {
         Title = "AI5 Voltage",
         Values = AI5TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+
+    new LineSeries
+    {
+        Title = "AI4 Voltage",
+        Values = AI4TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+
+    new LineSeries
+    {
+        Title = "AI3 Voltage",
+        Values = AI3TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+
+    new LineSeries
+    {
+        Title = "AI2 Voltage",
+        Values = AI2TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+
+    new LineSeries
+    {
+        Title = "AI1 Voltage",
+        Values = AI1TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+
+    new LineSeries
+    {
+        Title = "AI0 Voltage",
+        Values = AI0TimeSeriesValues,
         PointGeometry = null,
         StrokeThickness = 2,
         Fill = Brushes.Transparent
