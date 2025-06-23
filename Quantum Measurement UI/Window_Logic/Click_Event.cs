@@ -169,33 +169,44 @@ namespace Quantum_measurement_UI
         /// <summary>
         /// Event handler for running the FFT executable.
         /// </summary>
-        private void RunFFTButton_Click(object sender, RoutedEventArgs e)
-        {
-            string fftExePath = @"C:\Quantum Squeezing\Andy test\GageStreamThruGPU-FFT\x64\Debug\GageStreamThruGPU-FFT.exe";
 
+
+        private async Task<bool> RunFFTAndWaitAsync(string fftExePath)
+        {
             try
             {
                 if (!File.Exists(fftExePath))
                 {
-                    AppendMessage("FFT executable not found at: " + fftExePath);
-                    return;
+                    AppendMessage("⚠️ FFT executable not found: " + fftExePath);
+                    return false;
                 }
 
-                ProcessStartInfo startInfo = new ProcessStartInfo
+                var startInfo = new ProcessStartInfo
                 {
                     FileName = fftExePath,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
 
-                Process fftProcess = Process.Start(startInfo);
-                AppendMessage("Started FFT processing.");
+                var fftProcess = Process.Start(startInfo);
+
+                AppendMessage("⏳ Waiting for FFT to finish...");
+                LogExperimentEvent("⏳ Waiting for FFT to finish...");
+
+                await fftProcess.WaitForExitAsync();  // ⚠️ .NET 6+ required
+
+                AppendMessage("✅ FFT completed.");
+                LogExperimentEvent("✅ FFT completed.");
+                return true;
             }
             catch (Exception ex)
             {
-                AppendMessage("Error starting FFT process: " + ex.Message);
+                AppendMessage("❌ FFT process failed: " + ex.Message);
+                LogExperimentEvent("❌ FFT process failed: " + ex.Message);
+                return false;
             }
         }
+
 
         private double Interpolate(double[] array, double index)
         {
@@ -263,6 +274,7 @@ namespace Quantum_measurement_UI
             double Fs = 608e6;
 
             AppendMessage("⏳ Processing FFT and saving PNG...");
+            LogExperimentEvent("⏳ Processing FFT and saving PNG...");
 
             (double[] freqs, double[] dbA, double[] dbB,
    (double fA, double dBA) peakA, (double fB, double dBB) peakB,
@@ -355,7 +367,9 @@ namespace Quantum_measurement_UI
 
 
             // === Export to PNG ===
-            string outputPath = @"C:\Quantum Squeezing\fft_result.png";
+            string outputDir = Path.GetDirectoryName(experimentLogFilePath);
+            string outputPath = Path.Combine(outputDir, "fft_result.png");
+
             using (var stream = File.Create(outputPath))
             {
                 var exporter = new OxyPlot.SkiaSharp.PngExporter
@@ -368,6 +382,7 @@ namespace Quantum_measurement_UI
             }
 
             AppendMessage($"✅ FFT chart saved to {outputPath}");
+            LogExperimentEvent($"✅ FFT chart saved to {outputPath}");
         }
 
 

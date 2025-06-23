@@ -11,7 +11,7 @@ using QuantumSqueezingUI;
 
 namespace Quantum_measurement_UI
 {
-    public partial class MainWindow : Window // Following file has logic for NiDaq and ESP Processes
+    public partial class MainWindow : Window // Current file has logic for NiDaq and ESP Processes
     { 
         #region Configuration and Process Management Functions 
 
@@ -22,6 +22,7 @@ namespace Quantum_measurement_UI
         {
             try
             {
+                
                 gageStreamProcess = System.Diagnostics.Process.Start(exePath);
                 AppendMessage("GageStreamThruGPU.exe started.");
             }
@@ -30,6 +31,8 @@ namespace Quantum_measurement_UI
                 AppendMessage($"Failed to start GageStreamThruGPU.exe: {ex.Message}");
             }
         }
+
+
 
         /// <summary>
         /// Initializes the experiment log file and copies the streaming configuration from StreamThruGPU.ini.
@@ -416,18 +419,21 @@ namespace Quantum_measurement_UI
         private void UpdateAI5Monitor()
         {
             int samplesPerChannel = daqBuffer.Length;
-            AppendMessage($"{samplesPerChannel}");
+            //double[,] buffer = new double[6, samplesPerChannel/6];
 
-            // Step 1: Accumulate samples into temporary buffer
-            int channel = 0;
+            //int channel = 0;
+            // Step 1: Accumulate samples into temporary 
             for (int i = 0; i < samplesPerChannel; i++)
             {
                 double value = daqBuffer[i]; // ai5 = channel 5
                 ai5AccumulationBuffer.Add(value);
-                channel++;
+                //buffer[channel, i / 6] = value;
+                //channel++;
 
-                if (channel > 5)
-                    channel = 0;
+                //if (channel > 5)
+                //{
+                //    channel = 0;
+                //}
             }
 
             // Step 2: Check if 100ms has passed
@@ -448,6 +454,16 @@ namespace Quantum_measurement_UI
 
                     aiTimeTracker.Add(timeElapsed);
                     double mean = ai5AccumulationBuffer.Average();
+
+                    //for(int i = 0; i < 6; i++)
+                    //{
+                    //    double mean = 0;
+                    //    for(int j = 0; j < samplesPerChannel / 6; j++)
+                    //    {
+                    //        mean += buffer[i, j];
+                    //    }
+                    //    mean /= samplesPerChannel / 6;
+                    //}
 
                     //if (paused) //Check if the method has been paused 
                     //{
@@ -519,8 +535,8 @@ namespace Quantum_measurement_UI
 
         private void UpdateAI5TimeSeriesChart() // TODO: Make this method Async to make updating the chart more precise
         {
-            if(AI5TimeSeriesValues?.Count > 60)
-                AI5TimeSeriesValues.RemoveAt(0);
+            //if(AI5TimeSeriesValues?.Count > 300)
+            //    AI5TimeSeriesValues.RemoveAt(0);
 
             double dt = 0.001; // Convert each point to seconds
 
@@ -758,7 +774,6 @@ namespace Quantum_measurement_UI
                     if (daqPipe != null && daqPipe.IsConnected)
                     {
                         string response = await daqPipe.SendCommandAsync("ReadAI");
-                        
 
                         string[] tokens = response.Split(',');
                         for (int i = 0; i < tokens.Length && i < daqBuffer.Length; i++)

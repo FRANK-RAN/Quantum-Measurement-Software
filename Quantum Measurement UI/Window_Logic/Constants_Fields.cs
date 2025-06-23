@@ -83,6 +83,9 @@ namespace Quantum_measurement_UI
         private const string IniFilePath = @"StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
         private const string resultsBaseDirectory = @"C:\Quantum Squeezing\Quantum-Measurement-Software\results";   // Base directory for storing experiment logs, ## can be modified for different users
         private const string exePath = @"C:\Quantum Squeezing\Quantum-Measurement-Software\GageStreamThruGPU\x64\Debug\GageStreamThruGPU.exe"; // executable path for GageStreamThruGPU program
+        string fftExePath = @"C:\Quantum Squeezing\Andy test\GageStreamThruGPU-FFT\x64\Debug\GageStreamThruGPU-FFT.exe";
+
+
 
 
         private CancellationTokenSource? motorVsAi5AutoLogCts;

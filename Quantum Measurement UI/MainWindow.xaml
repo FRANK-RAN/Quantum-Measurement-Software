@@ -201,8 +201,6 @@
                                 HorizontalAlignment="Center"
                                 Margin="0,5,0,10"
                                 Click="TerminateButton_Click"/>
-                                    <Button Content="Run FFT" Click="RunFFTButton_Click" Margin="5" Width="100"/>
-                                    <Button Content="Plot FFT Result" Click="PlotFFTResult_Click" Width="120"/>
                                 </StackPanel>
                             </GroupBox>
 

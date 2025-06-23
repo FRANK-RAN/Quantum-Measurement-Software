@@ -125,8 +125,26 @@ namespace Quantum_measurement_UI
                 AppendMessage("Experiment terminated and GageStreamThruGPU.exe has exited.");
                 LogExperimentEvent("Experiment terminated and GageStreamThruGPU.exe has exited.");
 
-                // Close the experiment log
-                if (experimentLogWriter != null)
+                // === Run FFT after GageStream ends ===
+                string fftExePath = @"C:\Quantum Squeezing\Andy test\GageStreamThruGPU-FFT\x64\Debug\GageStreamThruGPU-FFT.exe";
+
+                bool fftSuccess = await RunFFTAndWaitAsync(fftExePath);
+
+                if (fftSuccess)
+                {
+                    AppendMessage("✅ FFT completed after acquisition.");
+                    LogExperimentEvent("FFT completed after acquisition.");
+                    await Dispatcher.InvokeAsync(() => PlotSavedFFTResults());
+                }
+                else
+                {
+                    AppendMessage("⚠️ FFT failed after acquisition.");
+                }
+
+                PlotSavedFFTResults();
+
+                    // Close the experiment log
+                    if (experimentLogWriter != null)
                 {
                     experimentLogWriter.WriteLine("\n--- Experiment End ---\n");
                     experimentLogWriter.Flush();
