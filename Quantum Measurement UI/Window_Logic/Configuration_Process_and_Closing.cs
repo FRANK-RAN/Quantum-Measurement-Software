@@ -419,21 +419,21 @@ namespace Quantum_measurement_UI
         private void UpdateAI5Monitor()
         {
             int samplesPerChannel = daqBuffer.Length;
-            //double[,] buffer = new double[6, samplesPerChannel/6];
+            double[,] buffers = new double[6, samplesPerChannel/6];
 
-            //int channel = 0;
-            // Step 1: Accumulate samples into temporary 
+            int channel = 0;
+            // Step 1: Accumulate samples into temporary buffers
             for (int i = 0; i < samplesPerChannel; i++)
             {
                 double value = daqBuffer[i]; // ai5 = channel 5
                 ai5AccumulationBuffer.Add(value);
-                //buffer[channel, i / 6] = value;
-                //channel++;
+                buffers[channel, i / 6] = value;
+                channel++;
 
-                //if (channel > 5)
-                //{
-                //    channel = 0;
-                //}
+                if (channel > 5)
+                {
+                    channel = 0;
+                }
             }
 
             // Step 2: Check if 100ms has passed
@@ -453,17 +453,20 @@ namespace Quantum_measurement_UI
                     }
 
                     aiTimeTracker.Add(timeElapsed);
-                    double mean = ai5AccumulationBuffer.Average();
+                    //double mean = ai5AccumulationBuffer.Average();
 
-                    //for(int i = 0; i < 6; i++)
-                    //{
-                    //    double mean = 0;
-                    //    for(int j = 0; j < samplesPerChannel / 6; j++)
-                    //    {
-                    //        mean += buffer[i, j];
-                    //    }
-                    //    mean /= samplesPerChannel / 6;
-                    //}
+                    for (int i = 0; i < 6; i++)
+                    {
+                        double mean = 0;
+                        for (int j = 0; j < samplesPerChannel / 6; j++)
+                        {
+                            mean += buffers[i, j];
+                        }
+                        mean /= samplesPerChannel / 6;
+                        aiWindowData[i].Add(mean);
+                        UpdateAI5TimeSeriesChart(i);
+
+                    }
 
                     //if (paused) //Check if the method has been paused 
                     //{
@@ -491,19 +494,18 @@ namespace Quantum_measurement_UI
 
                     //test.Push(mean);
 
-                    
-                    ai5CurrentWindowData.Add(mean);
-                    
+
+                    //ai5CurrentWindowData.Add(mean);
+
+                    //// Keep buffer only 1000 points (about 100 seconds history)
+                    //if (ai5CurrentWindowData.Count > 300)
+                    //    ai5CurrentWindowData.RemoveAt(0);
 
 
-                    // Keep buffer only 1000 points (about 100 seconds history)
-                    if (ai5CurrentWindowData.Count > 300)
-                        ai5CurrentWindowData.RemoveAt(0);
+                    //UpdateAI5Stats(); // still update table stats
 
-                    UpdateAI5TimeSeriesChart();
-                    UpdateAI5Stats(); // still update table stats
 
-                    
+
                 }
 
                 lastAi5UpdateTime = DateTime.Now;
@@ -533,17 +535,43 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private void UpdateAI5TimeSeriesChart() // TODO: Make this method Async to make updating the chart more precise
+        private void UpdateAI5TimeSeriesChart(int channel) // TODO: Make this method Async to make updating the chart more precise
         {
-            //if(AI5TimeSeriesValues?.Count > 300)
-            //    AI5TimeSeriesValues.RemoveAt(0);
+
+            ChartValues<ObservablePoint> line;
+            switch (channel)
+            {
+                case 0:
+                    line = AI0TimeSeriesValues;
+                    break;
+                case 1:
+                    line = AI1TimeSeriesValues;
+                    break;
+                case 2:
+                    line = AI2TimeSeriesValues;
+                    break;
+                case 3:
+                    line = AI3TimeSeriesValues;
+                    break;
+                case 4:
+                    line = AI4TimeSeriesValues;
+                    break;
+                case 5:
+                    line = AI5TimeSeriesValues;
+                    break;
+                default:
+                    return;
+            }
+
+            if(line?.Count > 60)
+                line.RemoveAt(0);
 
             double dt = 0.001; // Convert each point to seconds
 
             
-            AI5TimeSeriesValues?.Add(new ObservablePoint( // Add an observable point for the last updated value in the Window Data
+            line?.Add(new ObservablePoint( // Add an observable point for the last updated value in the Window Data
                 timeElapsed * dt,
-                ai5CurrentWindowData[^1]));          
+                aiWindowData[channel][^1]));          
         }
 
 
@@ -766,6 +794,11 @@ namespace Quantum_measurement_UI
             var token = autoReadCts.Token;
 
             int motorVsAi5Counter = 0; // Counter for slower MotorVsAI5 update
+
+            for (int i = 0; i < aiWindowData.Length; i++) // initialize window
+            {
+                aiWindowData[i] = [];
+            }
 
             while (!token.IsCancellationRequested)
             {

@@ -66,11 +66,15 @@ namespace Quantum_measurement_UI
 
         private List<double> ai5CumulativeData = [];
         private List<double> ai5CurrentWindowData = [];
+        private List<double>[] aiWindowData = new List<double>[6];
         private double ai5SampleRate = 10000; // 10kHz
 
+        
 
 
-        public ChartValues<double> ESPPositionValues { get; set; }
+
+
+    public ChartValues<double> ESPPositionValues { get; set; }
 
         // Constants for process communication using named pipe 
         private const string PipeName = "DataPipe";
