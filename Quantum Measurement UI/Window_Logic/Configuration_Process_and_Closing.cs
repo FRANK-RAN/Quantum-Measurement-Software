@@ -376,9 +376,6 @@ namespace Quantum_measurement_UI
             }
         }
 
-
-
-
         private void StartMotorVsAI5Update()
         {
             motorVsAI5Cts = new CancellationTokenSource();
@@ -414,14 +411,20 @@ namespace Quantum_measurement_UI
         private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true; // used to determine the first point in the list
 
+
+        /// <summary>
+        /// Method Analyzes the Daq Buffer, and records the voltage across each of the 6 channels into their 
+        /// respective lists and onto the moniter
+        /// </summary>
         private async Task UpdateAI5Monitor()
         {
-            int samplesPerChannel = daqBuffer.Length;
-            double[,] buffers = new double[6, samplesPerChannel/6];
+            //Temporary variables to split the data into the channles
+            int samplesPerChannel = daqBuffer.Length / 6;
+            double[,] buffers = new double[6, samplesPerChannel];
 
             int channel = 0;
             // Step 1: Accumulate samples into temporary buffers
-            for (int i = 0; i < samplesPerChannel; i++)
+            for (int i = 0; i < daqBuffer.Length; i++)
             {
                 double value = daqBuffer[i]; // ai5 = channel 5
                 buffers[channel, i / 6] = value;
@@ -445,19 +448,18 @@ namespace Quantum_measurement_UI
 
                 aiTimeTracker.Add(timeElapsed);
                 
-
-                var tasks = new Task[6];
+                var tasks = new Task[6]; // Create an array to run all the Chart Updates Asynchronously
                 for (int i = 0; i < 6; i++)
                 {
                     int localChannel = i; // avoid closure issues
                     tasks[localChannel] = Task.Run(() =>
                     {
                         double mean = 0;
-                        for (int j = 0; j < samplesPerChannel / 6; j++)
+                        for (int j = 0; j < samplesPerChannel; j++)
                         {
                             mean += buffers[localChannel, j];
                         }
-                        mean /= samplesPerChannel / 6;
+                        mean /= samplesPerChannel;
 
                         Application.Current.Dispatcher.Invoke(() => 
                         {
@@ -500,7 +502,11 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private void UpdateAITimeSeriesChart(int channel) // TODO: Make this method Async to make updating the chart more precise
+        /// <summary>
+        /// Displays data from the selected channel on to the respective Line Series in the chart
+        /// </summary>
+        /// <param name="channel"></param>
+        private void UpdateAITimeSeriesChart(int channel) 
         {
 
             ChartValues<ObservablePoint>? line = channel switch // call one of the Series Values to be edited via the line variable
@@ -516,7 +522,7 @@ namespace Quantum_measurement_UI
 
             if (line == null) return;
 
-            if (line?.Count > 60) line.RemoveAt(0);
+            if (line?.Count > 60) line.RemoveAt(0); // Beyond 60 points, program starts running really slowly trying to render everything
 
             double dt = 0.001; // Convert each point to seconds
 
@@ -739,7 +745,9 @@ namespace Quantum_measurement_UI
         }
 
 
-
+        /// <summary>
+        /// Method that calls the other methods for the NiDaq and ESP to run cocurrently
+        /// </summary>
         private async Task StartAutoRead()
         {
             autoReadCts = new CancellationTokenSource();
