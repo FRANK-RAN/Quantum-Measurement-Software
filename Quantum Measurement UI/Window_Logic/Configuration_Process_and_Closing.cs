@@ -413,7 +413,6 @@ namespace Quantum_measurement_UI
         private bool paused = false;
         private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true; // used to determine the first point in the list
-        Stopwatch stopwatch = new Stopwatch();
 
         private async Task UpdateAI5Monitor()
         {
@@ -476,8 +475,6 @@ namespace Quantum_measurement_UI
                 await Task.WhenAll(tasks);
                 lastAiUpdateTime = DateTime.Now;
             }
-
-            
         }
 
         private void ReleaseDAQPipeButton_Click(object sender, RoutedEventArgs e)
@@ -711,7 +708,7 @@ namespace Quantum_measurement_UI
 
 
 
-
+        //TODO! Change program to have Tables for all channels, or determine if unneccesary
         private void UpdateAIStats(int channel)
         {
             var data = aiWindowData[channel];
@@ -815,11 +812,21 @@ namespace Quantum_measurement_UI
                 {
                     using (var writer = new StreamWriter(dialog.FileName))
                     {
-                        writer.WriteLine("Index,Time(ms),Voltage(V)");
-
-                        for (int i = 0; i < ai5CurrentWindowData.Count; i++)
+                        string line = "Index,Time(ms),";
+                        for(int i = 0; i < 6; i++)
                         {
-                            writer.WriteLine($"{i},{aiTimeTracker[i]},{ai5CurrentWindowData[i]}");
+                            line += $"Voltage {i} (V),";
+                        }
+                        writer.WriteLine(line);
+
+                        for (int i = 0; i < aiWindowData[0].Count; i++)
+                        {
+                            line = $"{i},{aiTimeTracker[i]},";
+                            for(int j = 0; j < 6; j++)
+                            {
+                                line += $"{aiWindowData[j][i]},";
+                            }
+                            writer.WriteLine(line);
                         }
                     }
                     AppendMessage("Saved successfully!");
