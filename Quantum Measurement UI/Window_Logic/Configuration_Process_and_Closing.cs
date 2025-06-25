@@ -408,15 +408,14 @@ namespace Quantum_measurement_UI
             });
         }
 
-        private List<double> ai5AccumulationBuffer = [];
         private List<double> aiTimeTracker = [];
-        private DateTime lastAi5UpdateTime = DateTime.Now;
+        private DateTime lastAiUpdateTime = DateTime.Now;
         private bool paused = false;
         private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true; // used to determine the first point in the list
-        private Smoothing_Block test = new(10);
+        Stopwatch stopwatch = new Stopwatch();
 
-        private void UpdateAI5Monitor()
+        private async Task UpdateAI5Monitor()
         {
             int samplesPerChannel = daqBuffer.Length;
             double[,] buffers = new double[6, samplesPerChannel/6];
@@ -426,90 +425,59 @@ namespace Quantum_measurement_UI
             for (int i = 0; i < samplesPerChannel; i++)
             {
                 double value = daqBuffer[i]; // ai5 = channel 5
-                ai5AccumulationBuffer.Add(value);
                 buffers[channel, i / 6] = value;
                 channel++;
 
-                if (channel > 5)
-                {
-                    channel = 0;
-                }
+                if (channel > 5) channel = 0;
             }
 
             // Step 2: Check if 100ms has passed
-            double timeDelta = (DateTime.Now - lastAi5UpdateTime).TotalMilliseconds;
+            double timeDelta = (DateTime.Now - lastAiUpdateTime).TotalMilliseconds;
             if (timeDelta >= 100)
             {
-                if (ai5AccumulationBuffer.Count > 0)
+                if (!first) // do not record the time of the first data point, will be affected by delay of the system
                 {
+                    timeElapsed += timeDelta;
+                }
+                else
+                {
+                    first = false;
+                }
 
-                    if (!first) // do not record the time of the first data point, will be affected by delay of the system
-                    {
-                        timeElapsed += timeDelta;
-                    }
-                    else
-                    {
-                        first = false;
-                    }
+                aiTimeTracker.Add(timeElapsed);
+                
 
-                    aiTimeTracker.Add(timeElapsed);
-                    //double mean = ai5AccumulationBuffer.Average();
-
-                    for (int i = 0; i < 6; i++)
+                var tasks = new Task[6];
+                for (int i = 0; i < 6; i++)
+                {
+                    int localChannel = i; // avoid closure issues
+                    tasks[localChannel] = Task.Run(() =>
                     {
                         double mean = 0;
                         for (int j = 0; j < samplesPerChannel / 6; j++)
                         {
-                            mean += buffers[i, j];
+                            mean += buffers[localChannel, j];
                         }
                         mean /= samplesPerChannel / 6;
-                        aiWindowData[i].Add(mean);
-                        UpdateAI5TimeSeriesChart(i);
 
-                    }
+                        Application.Current.Dispatcher.Invoke(() => 
+                        {
+                            aiWindowData[localChannel].Add(mean);
+                            UpdateAITimeSeriesChart(localChannel);
+                            
+                            // Keep buffer only 1000 points (about 100 seconds history)
+                            if (aiWindowData[localChannel].Count > 300)
+                                aiWindowData[localChannel].RemoveAt(0);
 
-                    //if (paused) //Check if the method has been paused 
-                    //{
-                    //    if(Math.Abs(mean) >= 0.3) // Continue the signal processing and inform the user
-                    //    {
-                    //        paused = false;
-                    //        lastAi5UpdateTime = DateTime.Now;
-                    //        AppendMessage($"Scanner Continued at {lastAi5UpdateTime}");
-                    //    }
-                    //    else
-                    //    { 
-                    //        return;
-                    //    }
-                    //}
-
-                    //// If the Voltage within AI5 drops because of the laser, the recording should pause and resume once the laser is recalbrated
-
-                    //else if (Math.Abs(mean) < 0.3) // If the absolute value of the mean is less than 10, then the recording pauses and waits for the voltage to return to expected value
-                    //{ //Voltage Threshold will change depending on the ai channel
-                    //    lastAi5UpdateTime = DateTime.Now;
-                    //    AppendMessage($"Scanner Paused at {lastAi5UpdateTime} \n");
-                    //    paused = true;
-                    //    return;
-                    //}
-
-                    //test.Push(mean);
-
-
-                    //ai5CurrentWindowData.Add(mean);
-
-                    //// Keep buffer only 1000 points (about 100 seconds history)
-                    //if (ai5CurrentWindowData.Count > 300)
-                    //    ai5CurrentWindowData.RemoveAt(0);
-
-
-                    //UpdateAI5Stats(); // still update table stats
-
-
-
+                            //UpdateAIStats(localChannel); // still update table stats
+                        });
+                    });
                 }
-
-                lastAi5UpdateTime = DateTime.Now;
+                await Task.WhenAll(tasks);
+                lastAiUpdateTime = DateTime.Now;
             }
+
+            
         }
 
         private void ReleaseDAQPipeButton_Click(object sender, RoutedEventArgs e)
@@ -535,36 +503,23 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private void UpdateAI5TimeSeriesChart(int channel) // TODO: Make this method Async to make updating the chart more precise
+        private void UpdateAITimeSeriesChart(int channel) // TODO: Make this method Async to make updating the chart more precise
         {
 
-            ChartValues<ObservablePoint> line;
-            switch (channel)
+            ChartValues<ObservablePoint>? line = channel switch // call one of the Series Values to be edited via the line variable
             {
-                case 0:
-                    line = AI0TimeSeriesValues;
-                    break;
-                case 1:
-                    line = AI1TimeSeriesValues;
-                    break;
-                case 2:
-                    line = AI2TimeSeriesValues;
-                    break;
-                case 3:
-                    line = AI3TimeSeriesValues;
-                    break;
-                case 4:
-                    line = AI4TimeSeriesValues;
-                    break;
-                case 5:
-                    line = AI5TimeSeriesValues;
-                    break;
-                default:
-                    return;
-            }
+                0 => AI0TimeSeriesValues,
+                1 => AI1TimeSeriesValues,
+                2 => AI2TimeSeriesValues,
+                3 => AI3TimeSeriesValues,
+                4 => AI4TimeSeriesValues,
+                5 => AI5TimeSeriesValues,
+                _ => null
+            };
 
-            if(line?.Count > 60)
-                line.RemoveAt(0);
+            if (line == null) return;
+
+            if (line?.Count > 60) line.RemoveAt(0);
 
             double dt = 0.001; // Convert each point to seconds
 
@@ -757,9 +712,9 @@ namespace Quantum_measurement_UI
 
 
 
-        private void UpdateAI5Stats()
+        private void UpdateAIStats(int channel)
         {
-            var data = ai5CurrentWindowData;
+            var data = aiWindowData[channel];
             if (data.Count > 0)
             {
                 double mean = data.Average();

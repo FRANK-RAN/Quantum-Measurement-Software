@@ -157,41 +157,13 @@ namespace Quantum_measurement_UI
 {
     new LineSeries
     {
-        Title = "AI5 Voltage",
-        Values = AI5TimeSeriesValues,
+        Title = "AI0 Voltage",
+        Values = AI0TimeSeriesValues,
         PointGeometry = null,
         StrokeThickness = 2,
         Fill = Brushes.Transparent
     },
-
-    new LineSeries
-    {
-        Title = "AI4 Voltage",
-        Values = AI4TimeSeriesValues,
-        PointGeometry = null,
-        StrokeThickness = 2,
-        Fill = Brushes.Transparent
-    },
-
-    new LineSeries
-    {
-        Title = "AI3 Voltage",
-        Values = AI3TimeSeriesValues,
-        PointGeometry = null,
-        StrokeThickness = 2,
-        Fill = Brushes.Transparent
-    },
-
-    new LineSeries
-    {
-        Title = "AI2 Voltage",
-        Values = AI2TimeSeriesValues,
-        PointGeometry = null,
-        StrokeThickness = 2,
-        Fill = Brushes.Transparent
-    },
-
-    new LineSeries
+                new LineSeries
     {
         Title = "AI1 Voltage",
         Values = AI1TimeSeriesValues,
@@ -199,11 +171,34 @@ namespace Quantum_measurement_UI
         StrokeThickness = 2,
         Fill = Brushes.Transparent
     },
-
-    new LineSeries
+                new LineSeries
     {
-        Title = "AI0 Voltage",
-        Values = AI0TimeSeriesValues,
+        Title = "AI2 Voltage",
+        Values = AI2TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI3 Voltage",
+        Values = AI3TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI4 Voltage",
+        Values = AI4TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI5 Voltage",
+        Values = AI5TimeSeriesValues,
         PointGeometry = null,
         StrokeThickness = 2,
         Fill = Brushes.Transparent
