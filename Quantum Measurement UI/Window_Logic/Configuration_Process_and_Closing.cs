@@ -368,6 +368,7 @@ namespace Quantum_measurement_UI
                 {
                     daqServiceProcess.Kill();
                     daqServiceProcess.WaitForExit();
+                    daqServiceProcess?.Dispose();
                 }
             }
             catch (Exception ex)
@@ -413,7 +414,7 @@ namespace Quantum_measurement_UI
 
 
         /// <summary>
-        /// Method Analyzes the Daq Buffer, and records the voltage across each of the 6 channels into their 
+        /// Analyze the Daq Buffer, and records the voltage across each of the 6 channels into their 
         /// respective lists and onto the moniter
         /// </summary>
         private async Task UpdateAI5Monitor()
@@ -489,6 +490,14 @@ namespace Quantum_measurement_UI
                     daqPipe = null;
                     AppendMessage("DAQ Pipe released successfully.");
                     MessageBox.Show("DAQ Pipe released successfully.");
+
+                    // If we started the DAQ service, close it
+                    if (daqServiceProcess != null && !daqServiceProcess.HasExited)
+                    {
+                        daqServiceProcess.Kill();
+                        daqServiceProcess.WaitForExit();
+                        daqServiceProcess?.Dispose();
+                    }
                 }
                 else
                 {
