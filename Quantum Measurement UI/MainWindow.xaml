@@ -9,9 +9,9 @@
     <Grid Margin="0,0,0,-10">
         <!-- Define row definitions -->
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="7*"/>
             <!-- Main content (TabControl) -->
-            <!--<RowDefinition Height="100"/>-->
+            <RowDefinition Height="*" />
             <!-- Shared message box -->
         </Grid.RowDefinitions>
 
@@ -677,12 +677,8 @@ Click="RunStoredProgramButton_Click" />
 
             </TabItem>
 
-
-
-
-
             <!--Alternate Tab for the Message Box-->
-            <TabItem Header="Messages">
+            <!--<TabItem Header="Messages">
                 <Grid>
                     <TextBox Name="SharedMessageLog"
                          IsReadOnly="True"
@@ -692,28 +688,26 @@ Click="RunStoredProgramButton_Click" />
                          FontFamily="Consolas"
                          FontSize="12" />
                 </Grid>
-            </TabItem>
-
-
-
-
+            </TabItem>-->
 
             <!-- Additional tabs can be added here -->
         </TabControl>
 
 
-        <!-- Shared Message Box at the bottom -->
-        <!--<GroupBox Header="Messages" Grid.Row="1" Margin="10">
+         <!--Shared Message Box at the bottom--> 
+        <GroupBox Header="Messages" Grid.Row="1" Margin="10">
             <Grid>
-                <TextBox Name="SharedMessageLog"
-                         IsReadOnly="True"
-                         VerticalScrollBarVisibility="Auto"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         FontFamily="Consolas"
-                         FontSize="12" />
+                <ScrollViewer>
+                    <TextBox Name="SharedMessageLog"
+                             IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             FontFamily="Consolas"
+                             FontSize="12" />
+                </ScrollViewer>
             </Grid>
-        </GroupBox>-->
+        </GroupBox>
     </Grid>
     
     <!--UI Elements-->

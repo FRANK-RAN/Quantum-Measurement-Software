@@ -412,7 +412,7 @@ namespace Quantum_measurement_UI
         private bool paused = false;
         private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true; // used to determine the first point in the list
-        Stopwatch timer = new Stopwatch();
+        private Mov_Avg window = new Mov_Avg(20);
 
 
         /// <summary>
@@ -450,7 +450,6 @@ namespace Quantum_measurement_UI
                 }
 
                 aiTimeTracker.Add(timeElapsed);
-                timer.Start();
                 
                 for (int i = 0; i < 6; i++)
                 {
@@ -463,18 +462,23 @@ namespace Quantum_measurement_UI
                     }
                     mean /= samplesPerChannel;
 
+                    if(i == 0 && window.Dropped(mean)) // if the mean of channel 0 is below that 
+                    {
+                        return;
+                    } 
+                    else if (i == 0)
+                    {
+                        window.Push(mean);
+                    }
+
                     aiWindowData[localChannel].Add(mean);
                     UpdateAITimeSeriesChart(localChannel);
                             
                     // Keep buffer only 1000 points (about 100 seconds history)
                     if (aiWindowData[localChannel].Count > 300)
                         aiWindowData[localChannel].RemoveAt(0);
-     
                 }
-                //await Task.WhenAll(tasks);
-                timer.Stop();
-                Console.WriteLine(timer.ElapsedMilliseconds);
-                timer.Restart();
+ 
                 lastAiUpdateTime = DateTime.Now;
             }
         }

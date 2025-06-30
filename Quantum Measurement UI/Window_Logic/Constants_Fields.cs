@@ -195,9 +195,9 @@ namespace Quantum_measurement_UI
 
         public bool Dropped(double test) // tests whether the voltage drops by comparing test voltage to avg voltage
         {
-            var avg = values.Average();
+            var avg = values.Count > 0? values.Average() : 0;
 
-            return avg - test < 0.15;
+            return avg - test > 0.0015;
         }
     }
 }
