@@ -74,8 +74,6 @@ namespace Quantum_measurement_UI
             SendCommand("AP");
         }
 
-
-
         /// <summary>
         /// Gets the current position of the axis
         /// </summary>

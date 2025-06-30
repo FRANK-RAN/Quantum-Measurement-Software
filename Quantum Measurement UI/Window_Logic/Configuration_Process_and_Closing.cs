@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using System.Diagnostics;
 using System.Windows.Controls;
 using QuantumSqueezingUI;
+using Windows.ApplicationModel.Activation;
 
 namespace Quantum_measurement_UI
 {
@@ -411,13 +412,14 @@ namespace Quantum_measurement_UI
         private bool paused = false;
         private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true; // used to determine the first point in the list
+        Stopwatch timer = new Stopwatch();
 
 
         /// <summary>
         /// Analyze the Daq Buffer, and records the voltage across each of the 6 channels into their 
         /// respective lists and onto the moniter
         /// </summary>
-        private async Task UpdateAI5Monitor()
+        private void UpdateAIMonitor()
         {
             //Temporary variables to split the data into the channles
             int samplesPerChannel = daqBuffer.Length / 6;
@@ -448,34 +450,31 @@ namespace Quantum_measurement_UI
                 }
 
                 aiTimeTracker.Add(timeElapsed);
+                timer.Start();
                 
-                var tasks = new Task[6]; // Create an array to run all the Chart Updates Asynchronously
                 for (int i = 0; i < 6; i++)
                 {
-                    int localChannel = i; // avoid closure issues
-                    tasks[localChannel] = Task.Run(() =>
+                    int localChannel = i;
+                    
+                    double mean = 0;
+                    for (int j = 0; j < samplesPerChannel; j++)
                     {
-                        double mean = 0;
-                        for (int j = 0; j < samplesPerChannel; j++)
-                        {
-                            mean += buffers[localChannel, j];
-                        }
-                        mean /= samplesPerChannel;
+                        mean += buffers[localChannel, j];
+                    }
+                    mean /= samplesPerChannel;
 
-                        Application.Current.Dispatcher.Invoke(() => 
-                        {
-                            aiWindowData[localChannel].Add(mean);
-                            UpdateAITimeSeriesChart(localChannel);
+                    aiWindowData[localChannel].Add(mean);
+                    UpdateAITimeSeriesChart(localChannel);
                             
-                            // Keep buffer only 1000 points (about 100 seconds history)
-                            if (aiWindowData[localChannel].Count > 300)
-                                aiWindowData[localChannel].RemoveAt(0);
-
-                            //UpdateAIStats(localChannel); // still update table stats
-                        });
-                    });
+                    // Keep buffer only 1000 points (about 100 seconds history)
+                    if (aiWindowData[localChannel].Count > 300)
+                        aiWindowData[localChannel].RemoveAt(0);
+     
                 }
-                await Task.WhenAll(tasks);
+                //await Task.WhenAll(tasks);
+                timer.Stop();
+                Console.WriteLine(timer.ElapsedMilliseconds);
+                timer.Restart();
                 lastAiUpdateTime = DateTime.Now;
             }
         }
@@ -517,8 +516,8 @@ namespace Quantum_measurement_UI
         /// <param name="channel"></param>
         private void UpdateAITimeSeriesChart(int channel) 
         {
-
-            ChartValues<ObservablePoint>? line = channel switch // call one of the Series Values to be edited via the line variable
+            // Call one of the Series Values to be edited via the line variable
+            ChartValues<ObservablePoint>? line = channel switch 
             {
                 0 => AI0TimeSeriesValues,
                 1 => AI1TimeSeriesValues,
@@ -755,7 +754,7 @@ namespace Quantum_measurement_UI
 
 
         /// <summary>
-        /// Method that calls the other methods for the NiDaq and ESP to run cocurrently
+        /// Method that calls the for the NiDaq and ESP to run 
         /// </summary>
         private async Task StartAutoRead()
         {
@@ -787,7 +786,7 @@ namespace Quantum_measurement_UI
                         Dispatcher.Invoke(() =>
                         {
                             UpdateDAQChart();         // 🔥 Existing: Update 6-channel DAQ chart
-                            UpdateAI5Monitor();        // 🔥 NEW: Update AI5 Power Checker functions
+                            UpdateAIMonitor();        // 🔥 Update AI Power Checker functions
                         });
 
                         motorVsAi5Counter++;
@@ -815,7 +814,7 @@ namespace Quantum_measurement_UI
         }
         private void SaveAI5DataToCSV_Click(object sender, RoutedEventArgs e)
         {
-            removeOutliers();
+            List<int> outliers = Outliers();
             try
             {
                 var dialog = new Microsoft.Win32.SaveFileDialog
@@ -838,6 +837,10 @@ namespace Quantum_measurement_UI
 
                         for (int i = 0; i < aiWindowData[0].Count; i++)
                         {
+                            if(outliers.Contains(i))
+                            {
+                                continue;
+                            }
                             line = $"{i},{aiTimeTracker[i]},";
                             for(int j = 0; j < 6; j++)
                             {
@@ -855,52 +858,31 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private void removeOutliers() // remove any points beyond the standard deviation
+        private List<int> Outliers() // remove any points beyond the standard deviation
         {
-            double stdDev = StandardDeviation();
-            double average = Average();
-            
-            for(var i = ai5CurrentWindowData.Count - 1; i >= 0; i--)
-            {
-                bool UpperDev = stdDev + average > ai5CurrentWindowData[i] && average < ai5CurrentWindowData[i];
-                bool LowerDev = stdDev - average < ai5CurrentWindowData[i] && average > ai5CurrentWindowData[i];
+            List<int> output = [];
 
-                if(!UpperDev && !LowerDev)
+            var moniter = aiWindowData[0];
+
+            for(var i = 1; i < moniter.Count-1; i++)
+            {
+                var delta1 = moniter[i] - moniter[i-1];
+                var delta2 = moniter[i+1] - moniter[i];
+                var secondDiv = Math.Abs(delta2 - delta1);
+
+                if(secondDiv > 0.0025)
                 {
-                    ai5CurrentWindowData.Remove(i);
-                    aiTimeTracker.Remove(i);
+                    output.Add(i);
                 }
             }
+
+            
+            return output;
         }
 
-        private double Average()
-        {
-            double average = 0;
-
-            foreach (var i in ai5CurrentWindowData) // calculate the average of the list
-            {
-                average += i;
-            }
-
-            return average / ai5CurrentWindowData.Count;
-        }
-
-        private double StandardDeviation()
-        {
-            double average = Average(); // Thinking about this, it might be easier to store the average as a private variable in the class
-            double deviations = 0;
-            foreach (var ai in ai5CurrentWindowData)
-            {
-                double deviation = ai - average; // find the deviation of the value from the average
-                deviations += Math.Pow(deviation, 2);
-            }
-
-            deviations /= ai5CurrentWindowData.Count - 1;
-            double result = Math.Sqrt(deviations);
-
-            return result;
-        }
-
+        /// <summary>
+        /// Takes Data From the DaqBuffer and Graphs the Voltage of Each Channel in Real Time
+        /// </summary>
         private void UpdateDAQChart()
         {
             int samplesPerChannel = daqBuffer.Length / 6;

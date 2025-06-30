@@ -8,6 +8,7 @@ using System.Diagnostics;
 using QuantumSqueezingUI;
 using Quantum_measurement_UI;
 using Windows.Networking.PushNotifications;
+using Microsoft.UI.Xaml.Controls;
 
 namespace Quantum_measurement_UI
 {
@@ -170,42 +171,33 @@ namespace Quantum_measurement_UI
 
         #endregion
     }
-
-    public class Smoothing_Block // Make a block to assist with the smoothing of data collected on a chart
+    
+    public class Mov_Avg // Object to compare new data points in the NiDaq to existing points to find drops in voltage
     {
-        private double[] values;
-        private double sum;
-        private int occupied;
-        public double avg {  get; set; }
+        private Queue<double> values;
+        private int _size;
 
-        public Smoothing_Block(int size)
-        {
-            values = new double[size];
-            occupied = 0;
-            avg = 0.0;
-            sum = 0.0;
+        public Mov_Avg(int size)
+        { 
+            this._size = size;
+            values = new ();
         }
 
-        public void Push(double value)
+        public void Push(double value) // Pushes values into the queue, limiting the queue to a certain size for memory management
         {
-            
-            double toShift = value;
-            for (int i = 0; i < occupied;  i++)
+            values.Enqueue(value);
+
+            if(values.Count > _size)
             {
-                double temp = values[i];
-                values[i] = toShift;
-                toShift = temp;
+                values.Dequeue();
             }
-            sum -= values[^1]; // remove the value at the end of the list
-            sum += value;
+        }
 
-            if (occupied < values.Length)
-            {
-                occupied++;
-            }
+        public bool Dropped(double test) // tests whether the voltage drops by comparing test voltage to avg voltage
+        {
+            var avg = values.Average();
 
-            avg = sum/occupied;
-
+            return avg - test < 0.15;
         }
     }
 }
