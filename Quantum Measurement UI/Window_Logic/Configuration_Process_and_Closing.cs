@@ -309,12 +309,12 @@ namespace Quantum_measurement_UI
             {
                 EnsureDAQServiceRunning();
 
-                if (daqPipe == null || !daqPipe.IsConnected)
+                if (daqPipe == null || !daqPipe.IsConnected) // Create a new Pipe Client if one is not already running
                 {
                     daqPipe = new PipeClient();
                     await daqPipe.ConnectAsync();
 
-                    // 🔥 Start all the channels
+                    // Start all the channels
                     string response = await daqPipe.SendCommandAsync($"StartAI ai0,ai1,ai2,ai3,ai4,ai5");
                     AppendMessage("Connected to QuantumDAQService!\n" + response);                   
                                        
@@ -391,9 +391,9 @@ namespace Quantum_measurement_UI
                     {
                         Dispatcher.Invoke(() =>
                         {
-                            UpdateMotorVsAI5(); // 🔥 Update motor curve every 100 ms
+                            UpdateMotorVsAI5(); // Update motor curve every 100 ms
                         });
-                        await Task.Delay(100, token); // 100 ms = 10 Hz
+                        await Task.Delay(100, token); // 100ms = 10Hz
                     }
                     catch (TaskCanceledException)
                     {
@@ -412,8 +412,7 @@ namespace Quantum_measurement_UI
         private bool paused = false;
         private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true; // used to determine the first point in the list
-        private Mov_Avg window = new Mov_Avg(20);
-
+        private Mov_Avg window = new (20);
 
         /// <summary>
         /// Analyze the Daq Buffer, and records the voltage across each of the 6 channels into their 
@@ -450,11 +449,11 @@ namespace Quantum_measurement_UI
                 }
 
                 aiTimeTracker.Add(timeElapsed);
-                
+
                 for (int i = 0; i < 6; i++)
                 {
                     int localChannel = i;
-                    
+
                     double mean = 0;
                     for (int j = 0; j < samplesPerChannel; j++)
                     {
@@ -462,10 +461,10 @@ namespace Quantum_measurement_UI
                     }
                     mean /= samplesPerChannel;
 
-                    if(i == 0 && window.Dropped(mean)) // if the mean of channel 0 is below that 
+                    if (i == 0 && window.Dropped(mean)) // if the mean of channel 0 is below that 
                     {
                         return;
-                    } 
+                    }
                     else if (i == 0)
                     {
                         window.Push(mean);
@@ -473,12 +472,12 @@ namespace Quantum_measurement_UI
 
                     aiWindowData[localChannel].Add(mean);
                     UpdateAITimeSeriesChart(localChannel);
-                            
+
                     // Keep buffer only 1000 points (about 100 seconds history)
                     if (aiWindowData[localChannel].Count > 300)
                         aiWindowData[localChannel].RemoveAt(0);
                 }
- 
+
                 lastAiUpdateTime = DateTime.Now;
             }
         }
@@ -534,7 +533,7 @@ namespace Quantum_measurement_UI
 
             if (line == null) return;
 
-            if (line?.Count > 60) line.RemoveAt(0); // Beyond 60 points, program starts running really slowly trying to render everything
+            if (line?.Count > 40) line.RemoveAt(0); // Beyond 60 points, program starts running really slowly trying to render everything
 
             double dt = 0.001; // Convert each point to seconds
 

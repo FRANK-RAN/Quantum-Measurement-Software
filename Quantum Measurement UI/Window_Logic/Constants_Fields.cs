@@ -197,7 +197,7 @@ namespace Quantum_measurement_UI
         {
             var avg = values.Count > 0? values.Average() : 0;
 
-            return avg - test > 0.0015;
+            return avg - test > 0.015;
         }
     }
 }
