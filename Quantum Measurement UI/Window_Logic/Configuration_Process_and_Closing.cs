@@ -305,6 +305,12 @@ namespace Quantum_measurement_UI
 
         private async void ConnectDAQButton_Click(object sender, RoutedEventArgs e)
         {
+            bool condition = await Connection();
+            if (condition) MessageBox.Show("Connected to QuantumDAQService!");
+        }
+
+        private async Task<bool> Connection()
+        {
             try
             {
                 EnsureDAQServiceRunning();
@@ -316,19 +322,20 @@ namespace Quantum_measurement_UI
 
                     // Start all the channels
                     string response = await daqPipe.SendCommandAsync($"StartAI ai0,ai1,ai2,ai3,ai4,ai5");
-                    AppendMessage("Connected to QuantumDAQService!\n" + response);                   
-                                       
-                    MessageBox.Show("Connected to QuantumDAQService!");
+                    AppendMessage("Connected to QuantumDAQService!\n" + response);
+                    return true;
                 }
                 else
                 {
                     AppendMessage("DAQ already connected. Skipping re-connection.");
+                    return false;
                 }
             }
             catch (Exception ex)
             {
                 AppendMessage("Failed to connect to QuantumDAQService: " + ex.Message);
                 MessageBox.Show("Failed to connect to QuantumDAQService: " + ex.Message);
+                return false;
             }
         }
 
@@ -407,12 +414,12 @@ namespace Quantum_measurement_UI
             });
         }
 
-        private List<double> aiTimeTracker = [];
+        
         private DateTime lastAiUpdateTime = DateTime.Now;
         private bool paused = false;
         private double timeElapsed = 0; // time elapsed measured in milliseconds
         private bool first = true; // used to determine the first point in the list
-        private Mov_Avg window = new (20);
+        private int WaitTicks = 0;
 
         /// <summary>
         /// Analyze the Daq Buffer, and records the voltage across each of the 6 channels into their 
@@ -437,7 +444,7 @@ namespace Quantum_measurement_UI
 
             // Step 2: Check if 100ms has passed
             double timeDelta = (DateTime.Now - lastAiUpdateTime).TotalMilliseconds;
-            if (timeDelta >= 100)
+            if (timeDelta >= 100 && WaitTicks <= 0)
             {
                 if (!first) // do not record the time of the first data point, will be affected by delay of the system
                 {
@@ -450,11 +457,11 @@ namespace Quantum_measurement_UI
 
                 aiTimeTracker.Add(timeElapsed);
 
-                for (int i = 0; i < 6; i++)
+                for (int i = 0; i < 6; i++) // Loop through each buffer channel
                 {
                     int localChannel = i;
 
-                    double mean = 0;
+                    double mean = 0; // Find the mean of each buffer
                     for (int j = 0; j < samplesPerChannel; j++)
                     {
                         mean += buffers[localChannel, j];
@@ -463,6 +470,8 @@ namespace Quantum_measurement_UI
 
                     if (i == 0 && window.Dropped(mean)) // if the mean of channel 0 is below that 
                     {
+                        WaitTicks = 80;
+                        AppendMessage("Stream Paused");
                         return;
                     }
                     else if (i == 0)
@@ -480,9 +489,15 @@ namespace Quantum_measurement_UI
 
                 lastAiUpdateTime = DateTime.Now;
             }
+            else if (timeDelta >= 100) WaitTicks--;
         }
 
-        private void ReleaseDAQPipeButton_Click(object sender, RoutedEventArgs e)
+        private void ReleaseDAQPipeButton_Click(object sender, RoutedEventArgs e) // Wrapper Method to interact with the button
+        {
+            if(Release()) MessageBox.Show("DAQ Pipe released successfully.");
+        }
+
+        private bool Release()
         {
             try
             {
@@ -491,7 +506,6 @@ namespace Quantum_measurement_UI
                     daqPipe.Dispose();
                     daqPipe = null;
                     AppendMessage("DAQ Pipe released successfully.");
-                    MessageBox.Show("DAQ Pipe released successfully.");
 
                     // If we started the DAQ service, close it
                     if (daqServiceProcess != null && !daqServiceProcess.HasExited)
@@ -500,16 +514,19 @@ namespace Quantum_measurement_UI
                         daqServiceProcess.WaitForExit();
                         daqServiceProcess?.Dispose();
                     }
+                    return true;
                 }
                 else
                 {
                     AppendMessage("DAQ Pipe already null.");
+                    return false;
                 }
             }
             catch (Exception ex)
             {
                 AppendMessage($"Error releasing DAQ Pipe: {ex.Message}");
                 MessageBox.Show($"Error releasing DAQ Pipe: {ex.Message}");
+                return false;
             }
         }
 
@@ -770,6 +787,8 @@ namespace Quantum_measurement_UI
             {
                 aiWindowData[i] = [];
             }
+
+            window = new Mov_Avg(20); // Window for the moving average
 
             while (!token.IsCancellationRequested)
             {

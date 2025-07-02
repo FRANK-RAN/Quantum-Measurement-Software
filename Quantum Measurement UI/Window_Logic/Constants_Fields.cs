@@ -63,19 +63,16 @@ namespace Quantum_measurement_UI
             }
         }
 
-
-
         private List<double> ai5CumulativeData = [];
         private List<double> ai5CurrentWindowData = [];
         private List<double>[] aiWindowData = new List<double>[6];
         private double ai5SampleRate = 10000; // 10kHz
-
-        
-
-
+        private List<double> aiTimeTracker = [];
+        private Mov_Avg window;
 
 
-    public ChartValues<double> ESPPositionValues { get; set; }
+
+        public ChartValues<double> ESPPositionValues { get; set; }
 
         // Constants for process communication using named pipe 
         private const string PipeName = "DataPipe";
@@ -197,7 +194,12 @@ namespace Quantum_measurement_UI
         {
             var avg = values.Count > 0? values.Average() : 0;
 
-            return avg - test > 0.015;
+            return avg * 0.7 > test;
+        }
+
+        public double Average()
+        {
+            return values.Count > 0 ? values.Average() : 0;
         }
     }
 }

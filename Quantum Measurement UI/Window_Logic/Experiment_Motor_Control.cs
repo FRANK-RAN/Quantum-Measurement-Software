@@ -27,7 +27,7 @@ namespace Quantum_measurement_UI
 
             try
             {
-
+                Task signal = Task.Run(() => Connection());
                 StartGageStreamProcess();   // Start the GageStreamThruGPU program, which is in the directory of the executable
                 InitializePipeClient();     // Initialize the pipe client for communication
 
@@ -51,11 +51,13 @@ namespace Quantum_measurement_UI
                 // Start the delay stage program
                 startDelayStageProgram();
                 Thread.Sleep(5000); // Wait for 5 seconds to ensure the delay stage program is started
+                await signal;
+                window = new Mov_Avg(20);
 
                 // Start the ESP position update task
                 espPositionCancellationTokenSource = new CancellationTokenSource();
                 _ = Task.Run(() => UpdateESPPosition(espPositionCancellationTokenSource.Token));
-
+                _ = Task.Run(() => ReadSignal());
 
 
                 // Send a request to the server to start data acquisition
@@ -93,9 +95,11 @@ namespace Quantum_measurement_UI
                 motionCancellationTokenSource?.Cancel();         // Stop automatic motion if running
                 autobalancer?.Stop();                            // Stop autobalancer if running
                 espPositionCancellationTokenSource?.Cancel();
+                autoReadCts?.Cancel();
 
                 stopDelayStageProgram();                         // stop delay stage program       
 
+                Release();
                 // Wait briefly to allow the data update task to stop
                 await Task.Delay(500);
 

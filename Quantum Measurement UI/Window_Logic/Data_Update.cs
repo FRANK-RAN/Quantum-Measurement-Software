@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using System.Diagnostics;
 using QuantumSqueezingUI;
 using Quantum_measurement_UI;
+using System.Threading;
 
 namespace Quantum_measurement_UI
 {
@@ -167,6 +168,86 @@ namespace Quantum_measurement_UI
                 }
                 isPaused = true;
                 return false; // Communication failed
+            }
+        }
+
+        /// <summary>
+        /// Method that enables the experiment to monitor signal status
+        /// and log any signal drops.
+        /// </summary>
+        /// <returns></returns>
+        private async Task ReadSignal() 
+        {
+            autoReadCts = new CancellationTokenSource();
+            var token = autoReadCts.Token;
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (daqPipe != null && daqPipe.IsConnected)
+                    {
+                        string response = await daqPipe.SendCommandAsync("ReadAI");
+
+                        string[] tokens = response.Split(',');
+                        for (int i = 0; i < tokens.Length && i < daqBuffer.Length; i++)
+                        {
+                            if (double.TryParse(tokens[i], out double value))
+                                daqBuffer[i] = value;
+                        }
+
+                        CheckForDrops();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Auto read error: {ex.Message}");
+                }
+
+                await Task.Delay(100);
+            }
+        }
+
+        private List<DateTime[]> SignalDrops = []; // Record of the Start Time and End Time of a Signal Drop
+
+        /// <summary>
+        /// Checks for When the Laser Signal Drops and Records Time They Happen
+        /// </summary>
+        private void CheckForDrops()
+        {
+            // Find the mean of channel 0 from the values in the Daq Buffer
+            int samplesPerChannel = daqBuffer.Length / 6;
+            double sum = 0;
+
+            for(int i  = 0; i < daqBuffer.Length; i += 6)
+            {
+                sum += daqBuffer[i];
+            }
+
+            double mean = sum / samplesPerChannel;
+
+            if (WaitTicks <= 0)
+            {
+                if (window.Dropped(mean))
+                {
+                    DateTime[] startEnd = [DateTime.Now, DateTime.Now]; // Put the start in the beggining and placeholder for end
+                    SignalDrops.Add(startEnd);
+                    WaitTicks = 150; // Wait 200 Ticks before testing another value
+                }
+                else
+                {
+                    window.Push(mean);
+                }
+                lastAiUpdateTime = DateTime.Now;
+            }
+            else
+            {
+                WaitTicks--;
+                if(WaitTicks <= 0)
+                {
+                    SignalDrops[^1][1] = DateTime.Now; // Add Time Signal Returned to Record
+                    AppendMessage($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
+                }
             }
         }
 
