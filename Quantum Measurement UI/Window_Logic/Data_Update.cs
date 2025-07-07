@@ -8,6 +8,7 @@ using System.Diagnostics;
 using QuantumSqueezingUI;
 using Quantum_measurement_UI;
 using System.Threading;
+using Microsoft.UI.Xaml.Input;
 
 namespace Quantum_measurement_UI
 {
@@ -122,6 +123,19 @@ namespace Quantum_measurement_UI
             }
         }
 
+        private double GetSignalMean(int channel)
+        {
+            int samplesPerChannel = daqBuffer.Length / 6;
+            double sum = 0;
+
+            for (int i = channel; i < daqBuffer.Length; i += 6)
+            {
+                sum += daqBuffer[i];
+            }
+
+            return sum / samplesPerChannel;
+        }
+
         /// <summary>
         /// Requests data from the server and receives it.
         /// </summary>
@@ -180,6 +194,7 @@ namespace Quantum_measurement_UI
         {
             autoReadCts = new CancellationTokenSource();
             var token = autoReadCts.Token;
+            Motor3_Balancer bal3 = new Motor3_Balancer(motorController);
 
             while (!token.IsCancellationRequested)
             {
@@ -195,8 +210,11 @@ namespace Quantum_measurement_UI
                             if (double.TryParse(tokens[i], out double value))
                                 daqBuffer[i] = value;
                         }
+                        // Find the mean of channel 0 from the values in the Daq Buffer
+                        double mean = GetSignalMean(0);
+                        CheckForDrops(mean);
 
-                        CheckForDrops();
+                        if(TimeToBalance) bal3.Update(mean);
                     }
                 }
                 catch (Exception ex)
@@ -204,35 +222,27 @@ namespace Quantum_measurement_UI
                     Console.WriteLine($"Auto read error: {ex.Message}");
                 }
 
-                await Task.Delay(100);
+                await Task.Delay(100); // Delay for 100 milliseconds 
             }
         }
 
         private List<DateTime[]> SignalDrops = []; // Record of the Start Time and End Time of a Signal Drop
+        private bool TimeToBalance = false;
 
         /// <summary>
         /// Checks for When the Laser Signal Drops and Records Time They Happen
         /// </summary>
-        private void CheckForDrops()
+        private void CheckForDrops(double mean)
         {
-            // Find the mean of channel 0 from the values in the Daq Buffer
-            int samplesPerChannel = daqBuffer.Length / 6;
-            double sum = 0;
-
-            for(int i  = 0; i < daqBuffer.Length; i += 6)
-            {
-                sum += daqBuffer[i];
-            }
-
-            double mean = sum / samplesPerChannel;
-
+            
             if (WaitTicks <= 0)
             {
                 if (window.Dropped(mean))
                 {
                     DateTime[] startEnd = [DateTime.Now, DateTime.Now]; // Put the start in the beggining and placeholder for end
                     SignalDrops.Add(startEnd);
-                    WaitTicks = 150; // Wait 200 Ticks before testing another value
+                    WaitTicks = 150; // Wait 150 Ticks before testing another value
+                    TimeToBalance = false;
                 }
                 else
                 {
@@ -247,6 +257,7 @@ namespace Quantum_measurement_UI
                 {
                     SignalDrops[^1][1] = DateTime.Now; // Add Time Signal Returned to Record
                     AppendMessage($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
+                    TimeToBalance = true;
                 }
             }
         }

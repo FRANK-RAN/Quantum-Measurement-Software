@@ -57,6 +57,8 @@ namespace Quantum_measurement_UI
                 // Start the ESP position update task
                 espPositionCancellationTokenSource = new CancellationTokenSource();
                 _ = Task.Run(() => UpdateESPPosition(espPositionCancellationTokenSource.Token));
+               
+                // Start the Daq Signal Check
                 _ = Task.Run(() => ReadSignal());
 
 

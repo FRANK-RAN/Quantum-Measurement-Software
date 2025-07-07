@@ -202,4 +202,65 @@ namespace Quantum_measurement_UI
             return values.Count > 0 ? values.Average() : 0;
         }
     }
+
+    public class Motor3_Balancer
+    {
+        private bool dir; // direction of the balance (true: up, false: down)
+        Queue<double> values;
+        MotorController controller;
+        double currentAvg;
+
+        public Motor3_Balancer(MotorController controller)
+        {
+            dir = true;
+            values = new ();
+            this.controller = controller;
+            currentAvg = -Double.MaxValue;
+        }
+
+        private void Undo() // Move in the opposite direction of the current movement
+        {
+            if (dir)
+            {
+                controller.MoveMinus1(3);
+            }
+            else
+            {
+                controller.MovePlus1(3);
+            }
+
+            dir = !dir; // swap the direction of the balance
+        }
+
+        private void Move() // Move motor in the direction of the balance
+        {
+            if (dir)
+            {
+                controller.MovePlus1(3);
+            }
+            else
+            {
+                controller.MoveMinus1(3);
+            }
+        }
+
+        public void Update(double mean) // method to update the balance 
+        {
+            values.Enqueue(mean);
+
+            // Once 10 values are addeed, check to see if the average has increased or decreased
+            if(values.Count > 10 && currentAvg < values.Average()) 
+            { // If increased, move the balance in the direction of motion and clear values
+                currentAvg = values.Average();
+                Move();
+                values.Clear();
+            } 
+            else if(values.Count > 10) // if average has decreased, move the balance backwards
+            {
+                Undo();
+                values.Clear();
+            }
+        }
+                
+    }
 }
