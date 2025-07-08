@@ -194,7 +194,12 @@ namespace Quantum_measurement_UI
         {
             autoReadCts = new CancellationTokenSource();
             var token = autoReadCts.Token;
+
             Motor3_Balancer bal3 = new Motor3_Balancer(motorController);
+            List<DateTime[]> SignalDrops = []; // Record of the Start Time and End Time of a Signal Drop
+
+            double maxVolts = 0; // Record the maximum voltage of the signal over the hour
+            DateTime start = DateTime.Now;
 
             while (!token.IsCancellationRequested)
             {
@@ -212,9 +217,19 @@ namespace Quantum_measurement_UI
                         }
                         // Find the mean of channel 0 from the values in the Daq Buffer
                         double mean = GetSignalMean(0);
-                        CheckForDrops(mean);
+                        CheckForDrops(SignalDrops, mean);
 
                         if(TimeToBalance) bal3.Update(mean);
+
+                        if(mean > maxVolts)  maxVolts = mean; 
+
+                        DateTime now = DateTime.Now;
+                        if((now - start).TotalHours >= 1)
+                        {
+                            AppendMessage($"Peak voltage between {start:HH:mm:ss.fff} - {now:HH:mm:ss.fff}: {maxVolts}");
+                            start = now;
+                            maxVolts = 0;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -226,13 +241,12 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private List<DateTime[]> SignalDrops = []; // Record of the Start Time and End Time of a Signal Drop
         private bool TimeToBalance = false;
 
         /// <summary>
         /// Checks for When the Laser Signal Drops and Records Time They Happen
         /// </summary>
-        private void CheckForDrops(double mean)
+        private void CheckForDrops(List<DateTime[]> SignalDrops, double mean)
         {
             
             if (WaitTicks <= 0)
