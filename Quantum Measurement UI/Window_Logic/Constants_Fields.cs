@@ -203,12 +203,17 @@ namespace Quantum_measurement_UI
         }
     }
 
-    public class Motor3_Balancer
+    public class Motor3_Balancer // Object to balance Motor 3
     {
         private bool dir; // direction of the balance (true: up, false: down)
         Queue<double> values;
-        MotorController controller;
+
+        MotorController controller; // Controller to move the motor
         double currentAvg;
+
+        int UndoInstance;
+        bool on;
+        DateTime SinceShutDown; // Record when the controller was last shut down
 
         public Motor3_Balancer(MotorController controller)
         {
@@ -216,6 +221,9 @@ namespace Quantum_measurement_UI
             values = new ();
             this.controller = controller;
             currentAvg = -Double.MaxValue;
+            UndoInstance = 0;
+            on = true;
+            SinceShutDown = DateTime.Now; // Placeholder value
         }
 
         private void Undo() // Move in the opposite direction of the current movement
@@ -230,22 +238,33 @@ namespace Quantum_measurement_UI
             }
 
             dir = !dir; // swap the direction of the balance
+
+            if(++UndoInstance >= 2) // if the motor balance undid twice, that means that its at a local maximum 
+            {
+                on = false; // Turn off motor balance
+                UndoInstance = 0;
+                currentAvg = -Double.MaxValue;
+                SinceShutDown = DateTime.Now;
+            }
         }
 
         private void Move() // Move motor in the direction of the balance
         {
             if (dir)
             {
-                controller.MovePlus1(3);
+                controller.MovePlus10(3);
             }
             else
             {
-                controller.MoveMinus1(3);
+                controller.MoveMinus10(3);
             }
         }
 
         public void Update(double mean) // method to update the balance 
         {
+            if ((DateTime.Now - SinceShutDown).TotalHours >= 1) on = true; // Turn on the motor balance after being off for an hour
+            if (!on) return; // Do not do anything if the motor balancer is off
+
             values.Enqueue(mean);
 
             // Once 10 values are addeed, check to see if the average has increased or decreased
@@ -262,5 +281,5 @@ namespace Quantum_measurement_UI
             }
         }
                 
-    }
+    } 
 }

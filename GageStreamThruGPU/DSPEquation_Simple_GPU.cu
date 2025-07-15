@@ -85,10 +85,10 @@ __global__ void demodulationCrossCorrelation(short* data,
 
 		int segmentStart = threadIdx.x / corrMatrixSize * segmentSize; // Determine the starting index of the segment in shared memory
 
-		double value1 = sharedSegment[segmentStart + row * 2];
-		double value2 = sharedSegment[segmentStart + (row + demodulationWindowSize) * 2];
-		double value3 = sharedSegment[segmentStart + col * 2 + 1];
-		double value4 = sharedSegment[segmentStart + (col + demodulationWindowSize) * 2 + 1];
+		register double value1 = sharedSegment[segmentStart + row * 2];
+		register double value2 = sharedSegment[segmentStart + (row + demodulationWindowSize) * 2];
+		register double value3 = sharedSegment[segmentStart + col * 2 + 1];
+		register double value4 = sharedSegment[segmentStart + (col + demodulationWindowSize) * 2 + 1];
 
 		double corrValue = (value1 - value2) * (value3 - value4);
 
@@ -201,6 +201,14 @@ extern "C" cudaError_t ComputeCrossCorrelationGPU(const __int64 u32LoopCount,			
 {
 	cudaError_t cudaStatus = cudaSuccess; // Return status of CUDA functions
 
+	int deviceId;
+	cudaGetDevice(&deviceId);
+
+	// Prefetch pointers to make data processing more efficient
+	cudaMemPrefetchAsync(data, size, deviceId);
+	cudaMemPrefetchAsync(d_aggregatedCorrMatrix, corrMatrixSize, deviceId);
+	cudaMemPrefetchAsync(d_reducedCorrMatrix, corrMatrixSize, deviceId);
+	cudaMemPrefetchAsync(d_scaling_factors, sizeof(double), deviceId);
 
 	// Compute the correlation matrix for each segment of data chunked by demodulation window policy
 	demodulationCrossCorrelation << <gridSize, blockSize, sharedSegmentSize * sizeof(double) >> > (data, size, d_aggregatedCorrMatrix, sharedSegmentSize, totalThreads, demodulationWindowSize, corrMatrixSize, segmentSize);
@@ -262,6 +270,18 @@ extern "C" cudaError_t ComputeG2CorrelationGPU(const __int64 u32LoopCount,      
 	FILE * AnalysisFile)                                                             // Analysis file for showing the G2 matrix
 {
 	cudaError_t cudaStatus = cudaSuccess; // Return status of CUDA functions
+
+	int deviceId;
+	cudaGetDevice(&deviceId);
+
+	//Prefetch pointers to make data processing more efficient
+	cudaMemPrefetchAsync(data, size, deviceId);
+	cudaMemPrefetchAsync(d_correlationMatrixA, corrMatrixSize, deviceId);
+	cudaMemPrefetchAsync(d_correlationMatrixB, corrMatrixSize, deviceId);
+	cudaMemPrefetchAsync(d_g2Matrix, corrMatrixSize, deviceId);
+	cudaMemPrefetchAsync(d_reducedCorrMatrixA, corrMatrixSize, deviceId);
+	cudaMemPrefetchAsync(d_reducedCorrMatrixB, corrMatrixSize, deviceId);
+	cudaMemPrefetchAsync(d_scaling_factors, sizeof(double), deviceId);
 
 	// Compute correlation matrices A and B using shared memory
 	demodulationAutoCorrelation << <gridSize, blockSize, sharedSegmentSize * sizeof(double) >> > (data, size, d_correlationMatrixA, d_correlationMatrixB, sharedSegmentSize, totalThreads, demodulationWindowSize, corrMatrixSize, segmentSize);

@@ -208,7 +208,7 @@ namespace Quantum_measurement_UI
                     if (daqPipe != null && daqPipe.IsConnected)
                     {
                         string response = await daqPipe.SendCommandAsync("ReadAI");
-
+                             
                         string[] tokens = response.Split(',');
                         for (int i = 0; i < tokens.Length && i < daqBuffer.Length; i++)
                         {
@@ -219,7 +219,7 @@ namespace Quantum_measurement_UI
                         double mean = GetSignalMean(0);
                         CheckForDrops(SignalDrops, mean);
 
-                        if(TimeToBalance) bal3.Update(mean);
+                        if(TimeToBalance) bal3.Update(mean); // if the balance window is open 
 
                         if(mean > maxVolts)  maxVolts = mean; 
 
