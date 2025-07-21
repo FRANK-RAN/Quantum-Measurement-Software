@@ -13,16 +13,24 @@ See QuantaMeasure in action! Watch the live demonstration  to explore the key fe
 
 # Table of Contents
 
+- [QuantaMeasure Documentation](#quantameasure-documentation)
 - [Introduction](#introduction)
+  - [**Live Demo**](#live-demo)
+- [Table of Contents](#table-of-contents)
+- [Documentation Roadmap](#documentation-roadmap)
 - [Overview](#overview)
-  - [Quantum Measurement UI](#quantum-measurement-ui)
-  - [GageStreamThruGPU](#gagestreamthrugpu)
-  - [Other Projects [MotorMove]](#3-other-projects-motormove)
+    - [Figure 1 Explanation](#figure-1-explanation)
+    - [1. Quantum Measurement UI](#1-quantum-measurement-ui)
+    - [2. GageStreamThruGPU](#2-gagestreamthrugpu)
+    - [3. QuantumDAQService](#3-quantumdaqservice)
+    - [4. Other Projects \[MotorMove\]](#4-other-projects-motormove)
 - [Software Development](#software-development)
-  - [Main Components](#main-components)
-  - [UI Components](#ui-components)
+    - [Main Components](#main-components)
   - [Workflow](#workflow)
+    - [Connection to External Process](#connection-to-external-process)
+  - [UI Components](#ui-components)
   - [Data Update Logic](#data-update-logic)
+    - [Asynchronous Data Updates](#asynchronous-data-updates)
   - [UI Thread and Worker Threads](#ui-thread-and-worker-threads)
   - [Event Handlers for Buttons](#event-handlers-for-buttons)
   - [Asynchronous Programming](#asynchronous-programming)
@@ -32,13 +40,19 @@ See QuantaMeasure in action! Watch the live demonstration  to explore the key fe
   - [Mathematical Definitions Behind Cross-Correlation](#mathematical-definitions-behind-cross-correlation)
   - [CUDA Programming](#cuda-programming)
     - [CUDA Programming Basics](#cuda-programming-basics)
+      - [Key Concepts:](#key-concepts)
+      - [Optimization Focus:](#optimization-focus)
     - [CUDA Program Design for Cross-Correlation Matrices](#cuda-program-design-for-cross-correlation-matrices)
-    - [Recommended Learning Resources](#recommended-learning-resources)
+      - [Kernel Design:](#kernel-design)
+      - [Memory Management:](#memory-management)
+    - [Recommended Learning Resources:](#recommended-learning-resources)
 - [Project and Process Connections](#project-and-process-connections)
   - [Project Reference](#project-reference)
   - [Process Communication via Named Pipe](#process-communication-via-named-pipe)
+    - [What is a Named Pipe?](#what-is-a-named-pipe)
     - [Communication Logic](#communication-logic)
     - [Efficiency and Extensibility](#efficiency-and-extensibility)
+    - [Potential Errors and Fixes](#potential-errors-and-fixes)
 
 
 
@@ -83,8 +97,7 @@ In this codebase, the solution contains two main projects:
 
 The **Quantum Measurement UI** project uses WPF (Windows Presentation Foundation) to build the entire software interface, including the frontend UI and basic data visualization presenter. The primary files in this project are:
 
-- **`MainWindow.xaml`**: Defines the user interface layout and elements for the main application window. XAML code here acts as a canvas for arranging components and adjusting their layout.
-- **`MainWindow.xaml.cs`**: The **code-behind file** for `MainWindow.xaml`, containing the C# code that defines the logic and functionality of the UI elements declared in `MainWindow.xaml`. While `MainWindow.xaml` is responsible for the layout and structure, `MainWindow.xaml.cs` handles the interactive behavior and application logic.
+**`MainWindow.xaml.cs`** and **`Window_Logic`**: The **code-behind file** for `MainWindow.xaml`. This C# file implements the logic and functionality for the UI elements defined in `MainWindow.xaml`. Additional window logic is organized in the `Window_Logic` folder. In summary, `MainWindow.xaml` defines the layout and structure, while `MainWindow.xaml.cs` and the files in `Window_Logic` manage the application's interactive behavior and core logic.
 
 ### 2. GageStreamThruGPU
 
@@ -94,8 +107,12 @@ The **GageStreamThruGPU** directory manages data acquisition and GPU-based proce
 - **`DSPEquation_Simple.cu`**: A CUDA file that defines the logic for GPU-based data processing. Functions from this file are called within `StreamThruGPU_Simple.c` to perform high-performance computations on the data.
 - **`DSPEquation_Simple_CPU.c`**: This file defines the data processing logic in a single-threaded, CPU-based way. It serves as a verification tool to ensure the correctness of the CUDA processing logic.
 
+### 3. QuantumDAQService
 
-### 3. Other Projects [MotorMove]
+The **QuantumDAQService** directory manages the acquision of the Voltage Across the registers AI0 - AI5. The DAQ Pipe allows for voltage to be monitered during the experiment, and to determine when voltage drops happen so that corrupted data can be removed from the experiment log. 
+
+
+### 4. Other Projects [MotorMove]
 
 The codebase solution also supports integrating additional components, such as APIs for controlling experimental instruments. For example, the **MotorMove** project includes `MotorControl.cs`, which manages the motor controller.
 
@@ -123,8 +140,20 @@ The key components of the code are:
    - The application consists of two primary tabs/pages, as defined in this file.
 
 2. **MainWindow.xaml.cs**:
-   - This file contains the logic to handle events, manage data, and update the UI components dynamically.
+   - This file contains the initialization parameters for the Main_Window class, which in turn cofnigures all the logic the main window of the app runs on
    - It acts as a bridge between the backend and the UI, binding data and logic to the elements defined in MainWindow.xaml.
+  
+3. **Window_Logic**
+   - This folder contains the other logic methods and parameters within the MainWindow class. Each of the processes have been seperated into distint files to make finding and fixing bugs easier. 
+  
+   - `Chart_Init_Functions.cs`: Initializes all charts within the Quantum UI.
+   - `Click Events.cs`: Handles button click events and related user interactions.
+   - `Configuration_Process_and_Closing.cs`: Manages DAQ service configuration and communication between the pipe and the Quantum UI software.
+   - `Constants_Fields.cs`: Defines objects and constants required for window functionality.
+   - `Data_Update.cs`: Updates experiment data received from the Gage Stream. Also checks the DAQ pipe for voltage drops with AI0 register, and records timestamps where faulty data may be present.
+   - `ESP300.cs`: Contains logic for controlling the ESP device.
+   - `Experiment_Motor_Control.cs`: Provides methods to start and stop experiments.
+   - `UI_and_Logging.cs`: Appends messages to the message box to display software status and updates.
 
 In C#, which is an object-oriented programming language, everything is encapsulated within classes. The `MainWindow` class is directly bound to `MainWindow.xaml`, so UI components defined in `MainWindow.xaml` can be accessed and manipulated in the `MainWindow` class.
 
@@ -425,3 +454,23 @@ Named pipes are an efficient method for process communication and can be extende
 This flexibility allows for seamless integration of processes written in different programming languages with our existing system.
 
 ---
+
+### Potential Errors and Fixes
+
+1. "Cannot Allocate Stream Buffer"
+   - This error is usually resolved by restarting Visual Studio. If the problem persists, restart the computer.
+
+2. "DC Freeze Error"
+   - If the Gage Stream takes a long time to activate or does not activate at all, this error may be the cause.
+   - Solution: Shut down the computer and manually reattach the Gage device.
+
+3. "Unable to Connect to DAQ"
+   - This occurs when a previous DAQ session was not properly terminated.
+   - Solution: Open Task Manager and end the task named "QuantumDAQService".
+
+4. "Fifo full detected"
+   - This happens when the card's processing and transfer time is much slower than the data acquisition rate.
+   - Solutions:
+     - Ensure the 'UseCPU' setting in the ini file is set to 0 (off).
+     - Make sure the GPU is adequately cooled.
+     - Check the profile text document in the results folder to see how long each process takes to complete.
