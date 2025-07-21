@@ -178,6 +178,15 @@ __global__ void averageMatrixKernel(double* averageMatrix, int N) {
 	}
 }
 
+__global__ void divideG2Matrix(double* g2Matrix, double* d_reducedCorrMatrixA, double* d_reducedCorrMatrixB, int size) {
+	int ij = threadIdx.x; // index for reduced matrix A
+	int mn = blockIdx.x; // index for reduced matrix A
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx < size) {
+		g2Matrix[idx] /= d_reducedCorrMatrixA[ij] * d_reducedCorrMatrixB[mn];
+	}
+}
+
 
 // Helper function for using CUDA to compute cross correlation.
 extern "C" cudaError_t ComputeCrossCorrelationGPU(const __int64 u32LoopCount,			// Loop count
@@ -201,14 +210,6 @@ extern "C" cudaError_t ComputeCrossCorrelationGPU(const __int64 u32LoopCount,			
 {
 	cudaError_t cudaStatus = cudaSuccess; // Return status of CUDA functions
 
-	int deviceId;
-	cudaGetDevice(&deviceId);
-
-	// Prefetch pointers to make data processing more efficient
-	cudaMemPrefetchAsync(data, size, deviceId);
-	cudaMemPrefetchAsync(d_aggregatedCorrMatrix, corrMatrixSize, deviceId);
-	cudaMemPrefetchAsync(d_reducedCorrMatrix, corrMatrixSize, deviceId);
-	cudaMemPrefetchAsync(d_scaling_factors, sizeof(double), deviceId);
 
 	// Compute the correlation matrix for each segment of data chunked by demodulation window policy
 	demodulationCrossCorrelation << <gridSize, blockSize, sharedSegmentSize * sizeof(double) >> > (data, size, d_aggregatedCorrMatrix, sharedSegmentSize, totalThreads, demodulationWindowSize, corrMatrixSize, segmentSize);
@@ -271,18 +272,6 @@ extern "C" cudaError_t ComputeG2CorrelationGPU(const __int64 u32LoopCount,      
 {
 	cudaError_t cudaStatus = cudaSuccess; // Return status of CUDA functions
 
-	int deviceId;
-	cudaGetDevice(&deviceId);
-
-	//Prefetch pointers to make data processing more efficient
-	cudaMemPrefetchAsync(data, size, deviceId);
-	cudaMemPrefetchAsync(d_correlationMatrixA, corrMatrixSize, deviceId);
-	cudaMemPrefetchAsync(d_correlationMatrixB, corrMatrixSize, deviceId);
-	cudaMemPrefetchAsync(d_g2Matrix, corrMatrixSize, deviceId);
-	cudaMemPrefetchAsync(d_reducedCorrMatrixA, corrMatrixSize, deviceId);
-	cudaMemPrefetchAsync(d_reducedCorrMatrixB, corrMatrixSize, deviceId);
-	cudaMemPrefetchAsync(d_scaling_factors, sizeof(double), deviceId);
-
 	// Compute correlation matrices A and B using shared memory
 	demodulationAutoCorrelation << <gridSize, blockSize, sharedSegmentSize * sizeof(double) >> > (data, size, d_correlationMatrixA, d_correlationMatrixB, sharedSegmentSize, totalThreads, demodulationWindowSize, corrMatrixSize, segmentSize);
 	
@@ -336,7 +325,8 @@ extern "C" cudaError_t ComputeG2CorrelationGPU(const __int64 u32LoopCount,      
 	checkCublas(cublasStatus_3, "cuBLAS Dgemm for G2 correlation matrix failed");
 
 
-	// TODO: Divide the g2 matrix by auto correlation matrix A and B
+	// Divide the g2 matrix by auto correlation matrix A and B
+	divideG2Matrix << <corrMatrixSize, corrMatrixSize >> > (d_g2Matrix, d_reducedCorrMatrixA, d_reducedCorrMatrixB, corrMatrixSize * corrMatrixSize * sizeof(double));
 
 	// Copy the result back to the host
 	checkCuda(cudaMemcpy(h_odata, d_g2Matrix, corrMatrixSize * corrMatrixSize * sizeof(double), cudaMemcpyDeviceToHost), "cudaMemcpy failed");
