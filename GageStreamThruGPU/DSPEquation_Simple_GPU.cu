@@ -178,12 +178,13 @@ __global__ void averageMatrixKernel(double* averageMatrix, int N) {
 	}
 }
 
-__global__ void divideG2Matrix(double* g2Matrix, double* d_reducedCorrMatrixA, double* d_reducedCorrMatrixB, int size) {
+__global__ void divideG2Matrix(double* g2Matrix, double* d_reducedCorrMatrixA, double* d_reducedCorrMatrixB, int size, int totalSegNum) {
 	int ij = threadIdx.x; // index for reduced matrix A
 	int mn = blockIdx.x; // index for reduced matrix A
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx < size) {
-		g2Matrix[idx] /= d_reducedCorrMatrixA[ij] * d_reducedCorrMatrixB[mn];
+		// multiply by the value are matrix A and B, and divide by the total number of Segments for Normaliization
+		g2Matrix[idx] /= d_reducedCorrMatrixA[ij] * d_reducedCorrMatrixB[mn] / totalSegNum; 
 	}
 }
 
@@ -326,7 +327,7 @@ extern "C" cudaError_t ComputeG2CorrelationGPU(const __int64 u32LoopCount,      
 
 
 	// Divide the g2 matrix by auto correlation matrix A and B
-	divideG2Matrix << <corrMatrixSize, corrMatrixSize >> > (d_g2Matrix, d_reducedCorrMatrixA, d_reducedCorrMatrixB, corrMatrixSize * corrMatrixSize * sizeof(double));
+	divideG2Matrix << <corrMatrixSize, corrMatrixSize >> > (d_g2Matrix, d_reducedCorrMatrixA, d_reducedCorrMatrixB, corrMatrixSize * corrMatrixSize, totalSegNum);
 
 	// Copy the result back to the host
 	checkCuda(cudaMemcpy(h_odata, d_g2Matrix, corrMatrixSize * corrMatrixSize * sizeof(double), cudaMemcpyDeviceToHost), "cudaMemcpy failed");
