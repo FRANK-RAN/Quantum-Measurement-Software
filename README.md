@@ -150,7 +150,7 @@ The key components of the code are:
    - `Click Events.cs`: Handles button click events and related user interactions.
    - `Configuration_Process_and_Closing.cs`: Manages DAQ service configuration and communication between the pipe and the Quantum UI software.
    - `Constants_Fields.cs`: Defines objects and constants required for window functionality.
-   - `Data_Update.cs`: Updates experiment data received from the Gage Stream. Also checks the DAQ pipe for voltage drops with AI0 register, and records timestamps where faulty data may be present.
+   - `Data_Update.cs`: Updates experiment with data collected from the Gage Stream. Also checks the DAQ pipe for voltage drops with AI0 register, and records timestamps where faulty data may be present.
    - `ESP300.cs`: Contains logic for controlling the ESP device.
    - `Experiment_Motor_Control.cs`: Provides methods to start and stop experiments.
    - `UI_and_Logging.cs`: Appends messages to the message box to display software status and updates.
@@ -473,4 +473,4 @@ This flexibility allows for seamless integration of processes written in differe
    - Solutions:
      - Ensure the 'UseCPU' setting in the ini file is set to 0 (off).
      - Make sure the GPU is adequately cooled.
-     - Check the profile text document in the results folder to see how long each process takes to complete.
+     - Check the profile text document in the results folder with the current date to see how long each process takes to complete.
