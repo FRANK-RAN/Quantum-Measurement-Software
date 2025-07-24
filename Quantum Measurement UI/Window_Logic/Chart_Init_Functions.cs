@@ -171,6 +171,165 @@ namespace Quantum_measurement_UI
             FlatnessChart.Series = MetricSeriesCollection;
         }
 
+        /// <summary>
+        /// Initializes the DAQ charts and their series.
+        /// </summary>
+        private void InitializeDAQCharts()
+        {
+            // Initialize the DAQ series collection with two series for channels A and B
+            ESPPositionValues = new ChartValues<double>();
+
+            ESPPositionChart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "ESP Position",
+        Values = ESPPositionValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+
+
+            // Initialize DAQ Channel Values
+            DAQChannel0Values = new ChartValues<double>();
+            DAQChannel1Values = new ChartValues<double>();
+            DAQChannel2Values = new ChartValues<double>();
+            DAQChannel3Values = new ChartValues<double>();
+            DAQChannel4Values = new ChartValues<double>();
+            DAQChannel5Values = new ChartValues<double>();
+
+            // Set up DAQChart with 6 series
+            DAQChart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "Channel 0",
+        Values = DAQChannel0Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 1",
+        Values = DAQChannel1Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 2",
+        Values = DAQChannel2Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 3",
+        Values = DAQChannel3Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 4",
+        Values = DAQChannel4Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+    new LineSeries
+    {
+        Title = "Channel 5",
+        Values = DAQChannel5Values,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+
+
+
+            MotorVsAI5Values = new ChartValues<ObservablePoint>();
+
+            MotorVsAI5Chart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "Motor Pos vs AI5",
+        Values = MotorVsAI5Values,
+        PointGeometrySize = 5,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+
+            AI5TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI4TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI3TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI2TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI1TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI0TimeSeriesValues = new ChartValues<ObservablePoint>();
+            AI5HistogramValues = new ChartValues<double>();
+
+            AI5TimeSeriesChart.Series = new SeriesCollection
+{
+    new LineSeries
+    {
+        Title = "AI0 Voltage",
+        Values = AI0TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI1 Voltage",
+        Values = AI1TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI2 Voltage",
+        Values = AI2TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI3 Voltage",
+        Values = AI3TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI4 Voltage",
+        Values = AI4TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    },
+                new LineSeries
+    {
+        Title = "AI5 Voltage",
+        Values = AI5TimeSeriesValues,
+        PointGeometry = null,
+        StrokeThickness = 2,
+        Fill = Brushes.Transparent
+    }
+};
+        }
+
         #endregion
     }
 }

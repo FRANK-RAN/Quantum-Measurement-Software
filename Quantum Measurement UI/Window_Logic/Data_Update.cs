@@ -241,7 +241,7 @@ namespace Quantum_measurement_UI
             }
         }
 
-        private bool TimeToBalance = false;
+        
 
         /// <summary>
         /// Checks for When the Laser Signal Drops and Records Time They Happen
@@ -257,6 +257,7 @@ namespace Quantum_measurement_UI
                     SignalDrops.Add(startEnd);
                     WaitTicks = 150; // Wait 150 Ticks before testing another value
                     TimeToBalance = false;
+                    SignalDropped = true; // Set the signal dropped flag to true
                 }
                 else
                 {
@@ -272,6 +273,7 @@ namespace Quantum_measurement_UI
                     SignalDrops[^1][1] = DateTime.Now; // Add Time Signal Returned to Record
                     AppendMessage($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
                     TimeToBalance = true;
+                    SignalDropped = false; // Reset the signal dropped flag
                 }
             }
         }

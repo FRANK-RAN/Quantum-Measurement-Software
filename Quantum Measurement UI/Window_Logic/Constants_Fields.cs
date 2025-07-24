@@ -166,6 +166,9 @@ namespace Quantum_measurement_UI
         // For the GageStreamThruGPU process
         private Process? gageStreamProcess;      // Process for starting the GageStreamThruGPU program
 
+        private bool TimeToBalance = false; // Flag to indicate if it's time to balance the motor
+        private bool SignalDropped = false; // Flag to indicate if the signal has dropped
+        
         #endregion
     }
     
