@@ -843,7 +843,7 @@ namespace Quantum_measurement_UI
                 {
                     Filter = "CSV files (*.csv)|*.csv",
                     DefaultExt = ".csv",
-                    FileName = "AI5Data_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv"
+                    FileName = "AIData_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv"
                 };
 
                 if (dialog.ShowDialog() == true)
@@ -1018,7 +1018,7 @@ namespace Quantum_measurement_UI
             }
             catch (Exception ex)
             {
-                AppendMessage($"Error updating Motor vs AI5 chart: {ex.Message}");
+                AppendMessage($"Error updating Motor vs AI chart: {ex.Message}");
             }
         }
 

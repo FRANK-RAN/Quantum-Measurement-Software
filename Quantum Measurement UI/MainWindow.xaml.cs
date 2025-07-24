@@ -53,10 +53,6 @@ namespace Quantum_measurement_UI
                 this // Pass the reference to MainWindow
             );
 
-            
-
-          
-
             InitializeAutobalanceCharts();  // Initialize Autobalance Charts
 
             // Initialize elapsed time timer
