@@ -144,7 +144,7 @@ The key components of the code are:
    - It acts as a bridge between the backend and the UI, binding data and logic to the elements defined in MainWindow.xaml.
   
 3. **Window_Logic**
-   - This folder contains the other logic methods and parameters within the MainWindow class. Each of the processes have been seperated into distint files to make finding and fixing bugs easier. 
+   - This folder contains the other logic methods and parameters within the MainWindow class. Each of the processes have been seperated into distint files to make finding and fixing bugs easier. Look at the `Info.md` file for more details. 
   
    - `Chart_Init_Functions.cs`: Initializes all charts within the Quantum UI.
    - `Click Events.cs`: Handles button click events and related user interactions.
@@ -154,6 +154,7 @@ The key components of the code are:
    - `ESP300.cs`: Contains logic for controlling the ESP device.
    - `Experiment_Motor_Control.cs`: Provides methods to start and stop experiments.
    - `UI_and_Logging.cs`: Appends messages to the message box to display software status and updates.
+   - `MainWindow.xaml.cs`: Implements the code-behind logic for MainWindow.xaml, linking the UI elements defined in XAML to their corresponding functionality in the application.
 
 In C#, which is an object-oriented programming language, everything is encapsulated within classes. The `MainWindow` class is directly bound to `MainWindow.xaml`, so UI components defined in `MainWindow.xaml` can be accessed and manipulated in the `MainWindow` class.
 
