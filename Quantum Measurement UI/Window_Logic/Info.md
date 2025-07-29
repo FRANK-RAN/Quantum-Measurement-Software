@@ -135,6 +135,11 @@ This file centralizes the logic for real-time data flow and visualization, ensur
    - After signal returns, **Motor3_balancer** balances the motor to maintain peak voltage
    - Records the maximum voltage after 1 hour
 
+**Unused Variables**
+  - There are variables currently not being used that can be useful for the project, mostly relating to the DAQ signal processing. 
+  - **SignalDropped**: Tells the system when the signal has dropped. Currently not being used by other methods, but could be useful in greater logic relating to experiment recording
+  - **SignalDrops** (list): Records the timestamps of when the signal drops and returns. Currenlty only used to append a message to the **MessageBox**. Future developments could include recording these timestamps into a txt file to put into the results folder, or creating a method to filter out recording times where signal data was corrupted
+
 ## ESP300.cs
 
 The `ESP300.cs` file contains all the logic for controlling and monitoring the **ESP300** delay stage controller within the **Quantum Measurement UI**. Its main responsibilities include:
