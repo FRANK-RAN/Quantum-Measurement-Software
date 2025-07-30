@@ -183,8 +183,9 @@ __global__ void divideG2Matrix(double* g2Matrix, double* d_reducedCorrMatrixA, d
 	int mn = blockIdx.x; // index for reduced matrix A
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx < size) {
-		// multiply by the value are matrix A and B, and divide by the total number of Segments for Normaliization
-		g2Matrix[idx] /= d_reducedCorrMatrixA[ij] * d_reducedCorrMatrixB[mn] / totalSegNum; 
+		// multiply by the value are matrix A and B
+		g2Matrix[idx] /= d_reducedCorrMatrixA[ij] * d_reducedCorrMatrixB[mn];
+		// Todo: test if normalization is neccessary by dividing by totalSegNum -> (CorrA * CorrB)/totallSegNum
 	}
 }
 
