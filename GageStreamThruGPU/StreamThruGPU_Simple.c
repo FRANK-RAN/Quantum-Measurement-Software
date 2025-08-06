@@ -58,7 +58,7 @@
 
 
 HANDLE raw_signal_hPipe = NULL;					// Handle to the pipe for all communication between software process and gagestreamthruGPU process
-char experimentLogDirectory[256] = "C:\\Quantum Squeezing\\Quantum-Measurement-Software\\results\\"; // 256 is an example size, adjust if needed
+char experimentLogDirectory[256] = "Z:\\Quantum Squeezing Project\\DataFiles\\"; // 256 is an example size, adjust if needed
 
 // User configuration variables
 typedef struct

@@ -947,6 +947,12 @@ namespace Quantum_measurement_UI
                     allChannels[ch][i] = sum / binSize;
                 }
             }
+            daqUpdateCounter++;
+            if (daqUpdateCounter >= 100)
+            {
+                daqUpdateCounter = 0;
+                Dispatcher.Invoke(UpdateShotNoise_CorrectedCrossCorrelation);
+            }
         }
 
         private void ChannelToggle_Checked(object sender, RoutedEventArgs e)

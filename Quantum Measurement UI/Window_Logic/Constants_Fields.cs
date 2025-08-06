@@ -41,6 +41,7 @@ namespace Quantum_measurement_UI
         public ChartValues<double> DAQChannel5Values { get; set; }
         private double[] daqBuffer = new double[900]; // Example buffer (6 channels x 10000 samples)
                                                       // === Motor Position vs AI5 Amplitude ===
+        private int daqUpdateCounter = 0;
         public ChartValues<ObservablePoint> MotorVsAI5Values { get; set; }
         private CancellationTokenSource? autoReadCts;
         public class StatRow
@@ -81,9 +82,10 @@ namespace Quantum_measurement_UI
         private const int DataPoints = 100;
         private const double UpdateInterval = 200; // milliseconds, 5 Hz update rate
 
+
         // For configuration file and experiment log
         private const string IniFilePath = @"StreamThruGPU.ini";   // Path to the GageStreamGPU .ini file
-        private const string resultsBaseDirectory = @"C:\Quantum Squeezing\Quantum-Measurement-Software\results";   // Base directory for storing experiment logs, ## can be modified for different users
+        private const string resultsBaseDirectory = @"Z:\Quantum Squeezing Project\DataFiles";   // Base directory for storing experiment logs, ## can be modified for different users
         private const string exePath = @"C:\Quantum Squeezing\Quantum-Measurement-Software\GageStreamThruGPU\x64\Debug\GageStreamThruGPU.exe"; // executable path for GageStreamThruGPU program
         string fftExePath = @"C:\Quantum Squeezing\Andy test\GageStreamThruGPU-FFT\x64\Debug\GageStreamThruGPU-FFT.exe";
 

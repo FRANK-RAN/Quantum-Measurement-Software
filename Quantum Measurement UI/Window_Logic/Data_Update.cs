@@ -136,6 +136,86 @@ namespace Quantum_measurement_UI
             return sum / samplesPerChannel;
         }
 
+        public void UpdateShotNoise_CorrectedCrossCorrelation()
+        {
+            try
+            {
+                if (DAQChannel1Values.Count == 0 || DAQChannel2Values.Count == 0 ||
+                    DAQChannel3Values.Count == 0 || DAQChannel4Values.Count == 0)
+                {
+                    CurrentSensitivityTextBlock.Text = "Shot Noise: N/A";
+                    return;
+                }
+
+                // === Constants ===
+                const double eCharge = 1.6e-19;            // J/eV
+                const double photonEnergy_eV = 1.6;        // 780 nm
+                const double repRate = 7.6e7;                // 80 MHz
+                const double gain = 24500;                 // V/A
+                const double responseTime = 3.5e-9;        // 3.5 ns
+                const double responsivity = 0.1;           // A/W
+                const double VtoW = 0.001;                 // 1 mV = 1 µW
+
+                double photonEnergy_J = photonEnergy_eV * eCharge;
+
+                // === Step 1: Average voltages for each detector ===
+                double Vdet1 = (DAQChannel1Values[^1] + DAQChannel2Values[^1]) / 2.0;
+                double Vdet2 = (DAQChannel3Values[^1] + DAQChannel4Values[^1]) / 2.0;
+
+                // === Step 2: Convert to optical power (W) ===
+                double P1 = Vdet1 * VtoW;
+                double P2 = Vdet2 * VtoW;
+
+                // === Step 3: Photon number per pulse ===
+                double N1 = P1 / (photonEnergy_J * repRate);
+                double N2 = P2 / (photonEnergy_J * repRate);
+
+                if (N1 <= 0 || N2 <= 0)
+                {
+                    CurrentSensitivityTextBlock.Text = "Shot Noise: Power too low";
+                    return;
+                }
+
+                // === Step 4: Sensitivity (V/photon) for both detectors ===
+                double sensitivity = responsivity * photonEnergy_J / responseTime * gain;
+
+                // === Step 5: Shot noise per pulse pair (V) for each detector ===
+                double shotNoise1 = Math.Sqrt(2) * Math.Sqrt(N1) * sensitivity;
+                double shotNoise2 = Math.Sqrt(2) * Math.Sqrt(N2) * sensitivity;
+
+                // === Step 6: Shot noise signal level (V²/√Hz) ===
+                double shotNoiseSignal_V2_sqrtHz = shotNoise1 * shotNoise2/ Math.Sqrt(repRate);
+
+                // === Step 7: Conversion factor (V²/rad²) ===
+                double conversion1 = 2 * N1 * sensitivity;
+                double conversion2 = 2 * N2 * sensitivity;
+                double conversionFactor_V2_per_rad2 = conversion1 * conversion2;
+
+                // === Step 8: Convert to rad²/√Hz ===
+                double noise_rad2_sqrtHz = shotNoiseSignal_V2_sqrtHz / conversionFactor_V2_per_rad2;
+                double noise_μrad2_sqrtHz = noise_rad2_sqrtHz * 1e12;
+
+                // === Display ===
+                CurrentSensitivityTextBlock.Text = $"Shot Noise: {noise_μrad2_sqrtHz:F2} μrad²/√Hz";
+
+                // === Optional debug logs ===
+                AppendMessage($"[Debug] Vdet1 = {Vdet1:F3} V, P1 = {P1 * 1e3:F2} mW, N1 = {N1:E2}");
+                AppendMessage($"[Debug] Vdet2 = {Vdet2:F3} V, P2 = {P2 * 1e3:F2} mW, N2 = {N2:E2}");
+                AppendMessage($"[Debug] Sensitivity = {sensitivity:E2} V/photon");
+                AppendMessage($"[Debug] Shot Noise1 = {shotNoise1:E2} V, Shot Noise2 = {shotNoise2:E2} V");
+                AppendMessage($"[Debug] Signal Level = {shotNoiseSignal_V2_sqrtHz:E2} V²/√Hz");
+                AppendMessage($"[Debug] Conversion Factor = {conversionFactor_V2_per_rad2:E2} V²/rad²");
+                AppendMessage($"[Debug] Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
+
+            }
+            catch (Exception ex)
+            {
+                CurrentSensitivityTextBlock.Text = "Shot Noise: Error";
+                AppendMessage($"[Corrected Shot Noise Calc Error] {ex.Message}");
+            }
+        }
+
+
         /// <summary>
         /// Requests data from the server and receives it.
         /// </summary>
