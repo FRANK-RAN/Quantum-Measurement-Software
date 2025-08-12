@@ -984,6 +984,17 @@ namespace Quantum_measurement_UI
         }
 
 
+        private void DiagonalIndexComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DiagonalIndexComboBox?.SelectedItem is ComboBoxItem item &&
+                int.TryParse(item.Content?.ToString(), out int i))
+            {
+                // i is 0..6; (7,7) is intentionally skipped
+                SetDiagonalMode(true, i);
+            }
+        }
+
+
         private void UpdateMotorVsAI5()
         {
             try

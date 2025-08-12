@@ -200,12 +200,19 @@ namespace Quantum_measurement_UI
 
                 // === Optional debug logs ===
                 AppendMessage($"[Debug] Vdet1 = {Vdet1:F3} V, P1 = {P1 * 1e3:F2} mW, N1 = {N1:E2}");
+                LogExperimentEvent($"Vdet1 = {Vdet1:F3} V, P1 = {P1 * 1e3:F2} mW, N1 = {N1:E2}");
                 AppendMessage($"[Debug] Vdet2 = {Vdet2:F3} V, P2 = {P2 * 1e3:F2} mW, N2 = {N2:E2}");
+                LogExperimentEvent($"Vdet2 = {Vdet2:F3} V, P2 = {P2 * 1e3:F2} mW, N2 = {N2:E2}");
                 AppendMessage($"[Debug] Sensitivity = {sensitivity:E2} V/photon");
+                LogExperimentEvent($"Sensitivity = {sensitivity:E2} V/photon");
                 AppendMessage($"[Debug] Shot Noise1 = {shotNoise1:E2} V, Shot Noise2 = {shotNoise2:E2} V");
+                LogExperimentEvent($"Shot Noise1 = {shotNoise1:E2} V, Shot Noise2 = {shotNoise2:E2}");
                 AppendMessage($"[Debug] Signal Level = {shotNoiseSignal_V2_sqrtHz:E2} V²/√Hz");
+                LogExperimentEvent($"Signal Level = {shotNoiseSignal_V2_sqrtHz:E2} V²/√Hz");
                 AppendMessage($"[Debug] Conversion Factor = {conversionFactor_V2_per_rad2:E2} V²/rad²");
+                LogExperimentEvent($"Conversion Factor = {conversionFactor_V2_per_rad2:E2} V²/rad²");
                 AppendMessage($"[Debug] Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
+                LogExperimentEvent($"Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
 
             }
             catch (Exception ex)
@@ -352,6 +359,7 @@ namespace Quantum_measurement_UI
                 {
                     SignalDrops[^1][1] = DateTime.Now; // Add Time Signal Returned to Record
                     AppendMessage($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
+                    LogExperimentEvent($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
                     TimeToBalance = true;
                     SignalDropped = false; // Reset the signal dropped flag
                 }
@@ -415,26 +423,90 @@ namespace Quantum_measurement_UI
         }
 
 
+        /*        /// <summary>
+                /// Updates the pixel chart with the selected pixel value over time.
+                /// </summary>
+                private void UpdatePixelChart()
+                {
+                    int index = selectedRow * 8 + selectedColumn;       // Row major order
+                    double selectedValue = corrMatrixBuffer[index];
+
+                    // Update the SelectedPixelValue TextBox
+                    SelectedPixelValue.Text = selectedValue.ToString("F2");
+
+                    // Add the new value to the PixelValues series
+                    PixelValues.Add(selectedValue);
+
+                    // Keep the series length manageable
+                    if (PixelValues.Count > 100) // Keep last 100 points
+                    {
+                        PixelValues.RemoveAt(0);
+                    }
+                }*/
+
+
         /// <summary>
-        /// Updates the pixel chart with the selected pixel value over time.
+        /// Updates the pixel chart. In diagonal mode, picks (i,i) (i != 7),
+        /// subtracts (7,7) and plots the cumulative sum over time.
+        /// Otherwise, uses the selected (row,col) and still subtracts (7,7),
+        /// plotting the cumulative sum.
         /// </summary>
+        private void SetDiagonalMode(bool enabled, int diagonalIndex = 6)
+        {
+            UseDiagonalMode = enabled;
+            SelectedDiagonalIndex = diagonalIndex == 7 ? 6 : Math.Max(0, Math.Min(7, diagonalIndex));
+
+            PixelCumulativeSum = 0;
+            PixelCount = 0;
+
+            if (PixelValues != null)
+                PixelValues.Clear();
+        }
+
+
         private void UpdatePixelChart()
         {
-            int index = selectedRow * 8 + selectedColumn;       // Row major order
-            double selectedValue = corrMatrixBuffer[index];
+            if (corrMatrixBuffer == null || corrMatrixBuffer.Length < 64) return;
 
-            // Update the SelectedPixelValue TextBox
-            SelectedPixelValue.Text = selectedValue.ToString("F2");
+            const int size = 8;
+            int anchorIdx = 7 * size + 7;
+            double anchor = corrMatrixBuffer[anchorIdx];
 
-            // Add the new value to the PixelValues series
-            PixelValues.Add(selectedValue);
-
-            // Keep the series length manageable
-            if (PixelValues.Count > 100) // Keep last 100 points
+            int r, c;
+            if (UseDiagonalMode)
             {
-                PixelValues.RemoveAt(0);
+                int d = SelectedDiagonalIndex;
+                if (d < 0) d = 0;
+                if (d > 7) d = 7;
+                if (d == 7) d = 6;
+                r = d; c = d;
             }
+            else
+            {
+                r = Math.Max(0, Math.Min(size - 1, selectedRow));
+                c = Math.Max(0, Math.Min(size - 1, selectedColumn));
+                if (r == 7 && c == 7) { r = 6; c = 6; }
+            }
+
+            int idx = r * size + c;
+            double diff = corrMatrixBuffer[idx] - anchor;
+
+            // Increment count and sum
+            PixelCount++;
+            PixelCumulativeSum += diff;
+
+            // Show both current diff and count
+            SelectedPixelValue.Text = $"{diff:F2}  (Δ=({r},{c})-(7,7)) | Count: {PixelCount}";
+
+            // Push cumulative sum to chart
+            PixelValues.Add(PixelCumulativeSum);
+
+            // Keep chart display to last 100 points, but DO NOT reset sum or count
+            if (PixelValues.Count > 100)
+                PixelValues.RemoveAt(0);
         }
+
+
 
         #endregion
     }

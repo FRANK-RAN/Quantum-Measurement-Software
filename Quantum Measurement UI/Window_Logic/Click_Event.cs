@@ -161,14 +161,37 @@ namespace Quantum_measurement_UI
             motorController.MoveMinus1(2);
         }
 
+
+
+
+        #region FFT Event Handlers
+        /// <summary>
+        /// Event handler for running the FFT executable.
+        /// </summary>
         private void PlotFFTResult_Click(object sender, RoutedEventArgs e)
         {
             PlotSavedFFTResults();
         }
 
-        /// <summary>
-        /// Event handler for running the FFT executable.
-        /// </summary>
+        private void EnableFFTCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            EnableFFT = true;
+            AppendMessage("FFT enabled.");
+        }
+
+        private void EnableFFTCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            EnableFFT = false;
+            AppendMessage("FFT disabled.");
+        }
+
+
+        // Example: call this from wherever you used to run FFT automatically
+        private async Task MaybeRunFFTAsync(string fftExePath)
+        {
+            if (!EnableFFT) return;              // <-- gate by checkbox
+            await RunFFTAndWaitAsync(fftExePath);
+        }
 
 
         private async Task<bool> RunFFTAndWaitAsync(string fftExePath)
@@ -423,6 +446,8 @@ namespace Quantum_measurement_UI
             return avg;
         }
 
+        #endregion
+
         /// <summary>
         /// Event handler for the Move to Target button click.
         /// </summary>
@@ -508,7 +533,7 @@ namespace Quantum_measurement_UI
         /// <summary>
         /// Event handler for the Confirm Pixel Selection button click.
         /// </summary>
-        private void ConfirmPixelSelection_Click(object sender, RoutedEventArgs e)
+     /*   private void ConfirmPixelSelection_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -538,7 +563,7 @@ namespace Quantum_measurement_UI
                 AppendMessage($"Error: {ex.Message}");
             }
         }
-
+*/
 
         /// <summary>
         /// Event handler for the Start Motion button click.

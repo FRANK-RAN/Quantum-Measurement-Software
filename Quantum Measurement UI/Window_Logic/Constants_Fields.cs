@@ -16,6 +16,8 @@ namespace Quantum_measurement_UI
     {
         #region Constants
 
+        private volatile bool EnableFFT = false; // default off
+
         private int selectedDAQChannel = 0; // Default to Channel 0
         private CancellationTokenSource? motorVsAI5Cts;
         public ChartValues<ObservablePoint>? AI5TimeSeriesValues { get; set; }
@@ -27,7 +29,11 @@ namespace Quantum_measurement_UI
         public ChartValues<double> AI5HistogramValues { get; set; }
 
 
-
+        // --- Pixel chart diagonal mode state ---
+        private bool UseDiagonalMode = true;        // set false to use selectedRow/selectedColumn as before
+        private int SelectedDiagonalIndex = 6;      // 0..7, but code will skip 7 -> use 6 instead
+        private double PixelCumulativeSum = 0;      // running sum for the chart
+        private long PixelCount = 0; // total number of samples in the cumulative sum
 
         private List<double> ai5AmplitudeBuffer = new List<double>();
         private PipeClient? daqPipe;

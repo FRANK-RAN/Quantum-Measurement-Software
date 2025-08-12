@@ -92,38 +92,38 @@ namespace Quantum_measurement_UI
             try
             {
                 // Stop all active processes
-                cancellationTokenSource?.Cancel();               // Stop the data updates
+                cancellationTokenSource?.Cancel();               // Stop data updates
                 motorPositionCancellationTokenSource?.Cancel();  // Stop motor position updates
-                motionCancellationTokenSource?.Cancel();         // Stop automatic motion if running
-                autobalancer?.Stop();                            // Stop autobalancer if running
-                espPositionCancellationTokenSource?.Cancel();
-                autoReadCts?.Cancel();
+                motionCancellationTokenSource?.Cancel();         // Stop automatic motion
+                autobalancer?.Stop();                            // Stop autobalancer
+                espPositionCancellationTokenSource?.Cancel();    // Stop ESP position updates
+                autoReadCts?.Cancel();                           // Stop auto read
 
-                stopDelayStageProgram();                         // stop delay stage program       
+                stopDelayStageProgram();                         // Stop delay stage program
 
                 Release();
-                // Wait briefly to allow the data update task to stop
+
+                // Give background loops a moment to exit gracefully
                 await Task.Delay(500);
 
-                // Send a termination signal to the other program via the pipe, to terminate digital acquisition
+                // Tell the DAQ process to terminate
                 if (pipeClient?.IsConnected == true)
                 {
-                    byte[] request = BitConverter.GetBytes((short)3); // Request to terminate data acquisition
-                    await pipeClient.WriteAsync(request, 0, request.Length); // Send termination request
-                    await pipeClient.FlushAsync(); // Ensure all data is sent
+                    byte[] request = BitConverter.GetBytes((short)3); // terminate acquisition
+                    await pipeClient.WriteAsync(request, 0, request.Length);
+                    await pipeClient.FlushAsync();
                 }
 
-                // Wait briefly to allow the other program to process the termination request
                 await Task.Delay(500);
 
-                // Close the pipe connection
+                // Close pipe
                 pipeClient?.Dispose();
                 pipeClient = null;
 
-                // Block until GageStreamThruGPU.exe process exits
+                // Wait for GageStreamThruGPU.exe to exit
                 if (gageStreamProcess != null && !gageStreamProcess.HasExited)
                 {
-                    await Task.Run(() => gageStreamProcess.WaitForExit()); // Wait in background thread
+                    await Task.Run(() => gageStreamProcess.WaitForExit());
                     gageStreamProcess.Dispose();
                     gageStreamProcess = null;
                 }
@@ -131,26 +131,28 @@ namespace Quantum_measurement_UI
                 AppendMessage("Experiment terminated and GageStreamThruGPU.exe has exited.");
                 LogExperimentEvent("Experiment terminated and GageStreamThruGPU.exe has exited.");
 
-                // === Run FFT after GageStream ends ===
+                // === Run FFT after acquisition (only if enabled) ===
+                // Use YOUR actual path; defaults to disabled unless checkbox is on.
                 string fftExePath = @"C:\Quantum Squeezing\Andy test\GageStreamThruGPU-FFT\x64\Debug\GageStreamThruGPU-FFT.exe";
 
-                bool fftSuccess = await RunFFTAndWaitAsync(fftExePath);
-
-                if (fftSuccess)
+                if (EnableFFT) // <- checkbox gate
                 {
-                    AppendMessage("✅ FFT completed after acquisition.");
-                    LogExperimentEvent("FFT completed after acquisition.");
-                    await Dispatcher.InvokeAsync(() => PlotSavedFFTResults());
-                }
-                else
-                {
-                    AppendMessage("⚠️ FFT failed after acquisition.");
+                    bool ok = await RunFFTAndWaitAsync(fftExePath);
+                    if (ok)
+                    {
+                        AppendMessage("✅ FFT completed after acquisition.");
+                        LogExperimentEvent("FFT completed after acquisition.");
+                        await Dispatcher.InvokeAsync(PlotSavedFFTResults);
+                    }
+                    else
+                    {
+                        AppendMessage("⚠️ FFT failed after acquisition.");
+                        LogExperimentEvent("FFT failed after acquisition.");
+                    }
                 }
 
-                PlotSavedFFTResults();
-
-                    // Close the experiment log
-                    if (experimentLogWriter != null)
+                // Close the experiment log
+                if (experimentLogWriter != null)
                 {
                     experimentLogWriter.WriteLine("\n--- Experiment End ---\n");
                     experimentLogWriter.Flush();
@@ -166,34 +168,31 @@ namespace Quantum_measurement_UI
 
                 isPaused = true; // Pause data updates
 
-                // Clear all charts data in the UI Thread
-                Dispatcher.Invoke(() =>
+                // Clear all charts/data on UI thread (null-safe)
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    // Clear the SignalChart data
-                    ChannelAValues.Clear();     // Clear the Channel A values of SignalChart
-                    ChannelBValues.Clear();     // Clear the Channel B values of SignalChart
+                    ChannelAValues?.Clear();
+                    ChannelBValues?.Clear();
 
-                    // Clear the heatmap data
-                    heatValues.Clear();        // Clear the cross correlation matrix Heatmap values
+                    heatValues?.Clear();
 
-                    // Clear the PixelChart data
-                    PixelValues.Clear();       // Clear the selected pixel values of cross correlation matrix
+                    PixelValues?.Clear();
+                    PixelCumulativeSum = 0;
+                    PixelCount = 0;
 
-                    // Clear Autobalance charts data
-                    autobalancer?.MotorPositionValues1.Clear();   // Clear the Motor 1 position values of Autobalance
-                    autobalancer?.MotorPositionValues2.Clear();   // Clear the Motor 2 position values of Autobalance
-                    autobalancer?.MetricValuesA.Clear();         // Clear the Channel A flatness metric values of Autobalance
-                    autobalancer?.MetricValuesB.Clear();         // Clear the Channel B flatness metric values of Autobalance
+                    autobalancer?.MotorPositionValues1?.Clear();
+                    autobalancer?.MotorPositionValues2?.Clear();
+                    autobalancer?.MetricValuesA?.Clear();
+                    autobalancer?.MetricValuesB?.Clear();
 
-                    // Reset UI elements if needed
-                    SelectedPixelValue.Text = "0.00";            // Reset the selected pixel value display
-                    ElapsedTimeText.Text = "00:00:00";           // Reset the experiment elapsed time display
+                    SelectedPixelValue.Text = "0.00";
+                    ElapsedTimeText.Text = "00:00:00";
                 });
             }
-
             catch (Exception ex)
             {
                 AppendMessage($"Error during termination: {ex.Message}");
+                LogExperimentEvent($"Error during termination: {ex.Message}");
             }
         }
 

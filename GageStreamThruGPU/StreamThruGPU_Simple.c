@@ -1676,10 +1676,13 @@ DWORD WINAPI CardStreamThread(void* CardIndex)
 			u32LoopCount++;
 
 
+
 			if (timer == TRUE) {
+				SYSTEMTIME time;
+				GetLocalTime(&time);
 				QueryPerformanceCounter(&step_end_time);  
 				step_time = ((double)(step_end_time.QuadPart - step_start_time.QuadPart)) / freq;  
-				fprintf(profileFile, "One Step Time: %.2f ms, Transfer and process Time: %.2f ms, GPU Process Time: %.2f ms\n", step_time, transfer_time, process_time);
+				fprintf(profileFile, "Transfer start timestamp: %02d:%02d:%02d.%03d ,One Step Time: %.2f ms, Transfer and process Time: %.2f ms, GPU Process Time: %.2f ms\n", time.wHour, time.wMinute, time.wSecond, time.wMilliseconds, step_time, transfer_time, process_time);
 			}
 		}
 
