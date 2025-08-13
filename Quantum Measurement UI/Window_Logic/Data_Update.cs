@@ -214,6 +214,15 @@ namespace Quantum_measurement_UI
                 AppendMessage($"[Debug] Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
                 LogExperimentEvent($"Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
 
+                LogSensitivity($"Vdet1 = {Vdet1:F3} V, P1 = {P1 * 1e3:F2} mW, N1 = {N1:E2}");
+                LogSensitivity($"Vdet2 = {Vdet2:F3} V, P2 = {P2 * 1e3:F2} mW, N2 = {N2:E2}");
+                LogSensitivity($"Sensitivity = {sensitivity:E2} V/photon");
+                LogSensitivity($"Shot Noise1 = {shotNoise1:E2} V, Shot Noise2 = {shotNoise2:E2}");
+                LogSensitivity($"Signal Level = {shotNoiseSignal_V2_sqrtHz:E2} V²/√Hz");
+                LogSensitivity($"Conversion Factor = {conversionFactor_V2_per_rad2:E2} V²/rad²");
+                LogSensitivity($"Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
+
+
             }
             catch (Exception ex)
             {
@@ -360,6 +369,7 @@ namespace Quantum_measurement_UI
                     SignalDrops[^1][1] = DateTime.Now; // Add Time Signal Returned to Record
                     AppendMessage($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
                     LogExperimentEvent($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
+                    LogDroppedWindow($"Signal Dropped Between: {SignalDrops[^1][0]:HH:mm:ss.fff} - {SignalDrops[^1][1]:HH:mm:ss.fff}");
                     TimeToBalance = true;
                     SignalDropped = false; // Reset the signal dropped flag
                 }
@@ -489,7 +499,7 @@ namespace Quantum_measurement_UI
             }
 
             int idx = r * size + c;
-            double diff = corrMatrixBuffer[idx] - anchor;
+            double diff = (corrMatrixBuffer[idx] - anchor)*0.24*0.24/32768/32768;
 
             // Increment count and sum
             PixelCount++;

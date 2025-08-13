@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Threading;
 using LiveCharts;
 using LiveCharts.Defaults;
@@ -13,6 +14,9 @@ namespace Quantum_measurement_UI
         private readonly MotorController motorController;   // Reference to MotorController
         private readonly Func<short[]> getDataBuffer;      // Function to get data buffer
         private readonly Dispatcher dispatcher;            // Reference to Dispatcher for UI Thread operations
+                                                           // Autobalancer.cs  (new field)
+        private readonly Func<bool> isTimeToBalance;
+
 
         // *** Added reference to MainWindow ***
         private readonly MainWindow mainWindow;         // Reference to MainWindow
@@ -33,27 +37,34 @@ namespace Quantum_measurement_UI
         private int currentMotor2Position;
 
         // *** Modified constructor to accept MainWindow reference ***
-        public Autobalancer(MotorController motorController, Func<short[]> getDataBuffer, Dispatcher dispatcher, MainWindow mainWindow)
+        // Autobalancer.cs  (ctor signature + assignment)
+        public Autobalancer(
+            MotorController motorController,
+            Func<short[]> getDataBuffer,
+            Dispatcher dispatcher,
+            MainWindow mainWindow,
+            Func<bool> isTimeToBalance) // NEW
         {
-            this.motorController = motorController;     // Store reference to MotorController
-            this.getDataBuffer = getDataBuffer; // Function to get data buffer
-            this.dispatcher = dispatcher;   // Store reference to Dispatcher for UI Thread operations
-            this.mainWindow = mainWindow; // Store reference to MainWindow**
+            this.motorController = motorController;
+            this.getDataBuffer = getDataBuffer;
+            this.dispatcher = dispatcher;
+            this.mainWindow = mainWindow;
+            this.isTimeToBalance = isTimeToBalance; // NEW
 
-            // Initialize chart values
-            MotorPositionValues1 = new ChartValues<double>();   // Motor position values for motor 1 for chart
-            MotorPositionValues2 = new ChartValues<double>();   // Motor position values for motor 2 for chart
-            MetricValuesA = new ChartValues<double>();          // Metric values for channel A for chart
-            MetricValuesB = new ChartValues<double>();          // Metric values for channel B for chart
+            MotorPositionValues1 = new ChartValues<double>();
+            MotorPositionValues2 = new ChartValues<double>();
+            MetricValuesA = new ChartValues<double>();
+            MetricValuesB = new ChartValues<double>();
         }
+
 
         public void Start(double threshold, int numsegments)
         {
             if (IsRunning)
             {
-                this.mainWindow.AppendMessage("Autobalance is already running.");
-                this.mainWindow.LogExperimentEvent("Autobalance is already running.");
-                return; // Already running
+                mainWindow.AppendMessage("Autobalance is already running.");
+                mainWindow.LogExperimentEvent("Autobalance is already running.");
+                return;
             }
 
             IsRunning = true;
@@ -63,23 +74,146 @@ namespace Quantum_measurement_UI
             {
                 try
                 {
-                    await AutobalanceProcess(threshold, numsegments, autobalanceCancellationTokenSource.Token);
+                    var token = autobalanceCancellationTokenSource.Token;
+
+                    while (!token.IsCancellationRequested)
+                    {
+                        // 1) Wait until TimeToBalance opens
+                        while (!isTimeToBalance() && !token.IsCancellationRequested)
+                            await Task.Delay(50, token);
+                        if (token.IsCancellationRequested) break;
+
+                        // Stay active the whole window
+                        while (isTimeToBalance() && !token.IsCancellationRequested)
+                        {
+                            await RunSingleSessionMinimize(numsegments, token);
+
+                            // Optional: small delay between sweeps to avoid thrashing
+                            await Task.Delay(100, token);
+                        }
+                    }
                 }
-                catch (OperationCanceledException)
-                {
-                    // Autobalance was canceled
-                }
+                catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
-                    // *** Use AppendMessage to log exceptions ***
                     dispatcher.Invoke(() => mainWindow.AppendMessage($"Error during autobalance: {ex.Message}"));
                 }
-                finally
-                {
-                    IsRunning = false;
-                }
+                finally { IsRunning = false; }
             });
         }
+
+        private async Task RunSingleSessionMinimize(int numsegments, CancellationToken cancellationToken)
+        {
+            const int motor1 = 1, motor2 = 2;
+            int stepSize = 1;
+            const double epsilon = 1e-6; // anti-chatter around zero
+            while (!cancellationToken.IsCancellationRequested && isTimeToBalance())
+            {
+                bool motor1Done = false, motor2Done = false;
+
+            motorController.GetCurrentPosition(1, out currentMotor1Position);
+            motorController.GetCurrentPosition(2, out currentMotor2Position);
+
+            dispatcher.Invoke(() =>
+            {
+                mainWindow.AppendMessage($"[AutoBalance] Session start @ M1={currentMotor1Position}, M2={currentMotor2Position}");
+                mainWindow.LogExperimentEvent($"[AutoBalance] Session start @ M1={currentMotor1Position}, M2={currentMotor2Position}");
+            });
+       
+                int dir1 = 1, dir2 = 1;
+
+            short[] buf = getDataBuffer();
+            int startA = GetStartIndex(buf, 'A');
+            int startB = GetStartIndex(buf, 'B');
+            currentMetricA = ComputeFlatnessMetric(buf, numsegments, 'A', startA);
+            currentMetricB = ComputeFlatnessMetric(buf, numsegments, 'B', startB);
+            double prevA = currentMetricA, prevB = currentMetricB;
+
+            while (!cancellationToken.IsCancellationRequested && (!motor1Done || !motor2Done))
+            {
+                // Refresh metrics (for charting & decisions)
+                buf = getDataBuffer();
+                startA = GetStartIndex(buf, 'A');
+                startB = GetStartIndex(buf, 'B');
+                currentMetricA = ComputeFlatnessMetric(buf, numsegments, 'A', startA);
+                currentMetricB = ComputeFlatnessMetric(buf, numsegments, 'B', startB);
+                UpdateChartData();
+
+                // === Motor1 / Channel A (minimize to ~0) ===
+                if (!motor1Done)
+                {
+                    bool improved = await MoveMotorAndCheckMetric(motor1, stepSize * dir1, 'A', numsegments, cancellationToken, prevA);
+                    if (improved && (prevA - currentMetricA) > epsilon)
+                    {
+                        prevA = currentMetricA;
+                    }
+                    else
+                    {
+                        // reverse and try once
+                        dir1 *= -1;
+                        await MoveMotor(motor1, stepSize * dir1, cancellationToken);
+                        improved = await MoveMotorAndCheckMetric(motor1, stepSize * dir1, 'A', numsegments, cancellationToken, prevA);
+
+                        if (improved && (prevA - currentMetricA) > epsilon)
+                        {
+                            prevA = currentMetricA;
+                        }
+                        else
+                        {
+                            motor1Done = true;
+                            dispatcher.Invoke(() =>
+                            {
+                                mainWindow.AppendMessage("Autobalance M1: local MIN reached (near zero).");
+                                mainWindow.LogExperimentEvent("Autobalance M1: local MIN reached (near zero).");
+                            });
+                        }
+                    }
+                }
+
+                // === Motor2 / Channel B (minimize to ~0) ===
+                if (!motor2Done)
+                {
+                    bool improved = await MoveMotorAndCheckMetric(motor2, stepSize * dir2, 'B', numsegments, cancellationToken, prevB);
+                    if (improved && (prevB - currentMetricB) > epsilon)
+                    {
+                        prevB = currentMetricB;
+                    }
+                    else
+                    {
+                        dir2 *= -1;
+                        await MoveMotor(motor2, stepSize * dir2, cancellationToken);
+                        improved = await MoveMotorAndCheckMetric(motor2, stepSize * dir2, 'B', numsegments, cancellationToken, prevB);
+
+                        if (improved && (prevB - currentMetricB) > epsilon)
+                        {
+                            prevB = currentMetricB;
+                        }
+                        else
+                        {
+                            motor2Done = true;
+                            dispatcher.Invoke(() =>
+                            {
+                                mainWindow.AppendMessage("Autobalance M2: local MIN reached (near zero).");
+                                mainWindow.LogExperimentEvent("Autobalance M2: local MIN reached (near zero).");
+                            });
+                        }
+                    }
+                }
+
+                await Task.Delay(100, cancellationToken);
+            }
+
+            dispatcher.Invoke(() =>
+            {
+                mainWindow.AppendMessage("[AutoBalance] Session complete. Waiting for next TimeToBalance window…");
+                mainWindow.LogExperimentEvent("[AutoBalance] Session complete. Waiting for next TimeToBalance window…");
+                
+            });
+
+                await Task.Delay(100, cancellationToken);
+            }
+        }
+
 
         public void Stop()
         {
@@ -92,6 +226,7 @@ namespace Quantum_measurement_UI
             // *** Optionally, log that autobalance was stopped ***
             mainWindow.AppendMessage("Autobalance stopped.");
             mainWindow.LogExperimentEvent("Autobalance stopped.");
+            mainWindow.LogMotorNMetric("Autobalance stopped.");
         }
 
         private async Task AutobalanceProcess(double threshold, int numsegments, CancellationToken cancellationToken)
@@ -113,6 +248,7 @@ namespace Quantum_measurement_UI
                 // *** Use AppendMessage instead of MessageBox.Show ***
                 this.mainWindow.AppendMessage($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
                 this.mainWindow.LogExperimentEvent($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
+                this.mainWindow.LogMotorNMetric($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
 
             }); 
 
@@ -166,6 +302,7 @@ namespace Quantum_measurement_UI
                         // *** Use AppendMessage instead of MessageBox.Show ***
                         this.mainWindow.AppendMessage("Autobalance completed.");
                         this.mainWindow.LogExperimentEvent("Autobalance completed.");
+                        this.mainWindow.LogMotorNMetric("Autobalance completed.");
                     });
                     
                     break;
@@ -176,7 +313,7 @@ namespace Quantum_measurement_UI
                 {
                     // Move motor1 in the current direction
                     bool didMetricDecrease = await MoveMotorAndCheckMetric(
-                        motor1, stepSize * motor1Direction, 'A', numsegments, cancellationToken, previousMetricA);
+                        motor1, (int)(currentMetricA *0.001)* stepSize * motor1Direction, 'A', numsegments, cancellationToken, previousMetricA);
 
                     if (didMetricDecrease)
                     {
@@ -189,11 +326,11 @@ namespace Quantum_measurement_UI
                         motor1Direction *= -1;
 
                         // Move motor back to previous position
-                        await MoveMotor(motor1, stepSize * motor1Direction, cancellationToken);
+                        await MoveMotor(motor1, (int)(currentMetricA * 0.001) * stepSize * motor1Direction, cancellationToken);
 
                         // Move motor1 in the opposite direction for one step
                         didMetricDecrease = await MoveMotorAndCheckMetric(
-                            motor1, stepSize * motor1Direction, 'A', numsegments, cancellationToken, previousMetricA);
+                            motor1, (int)(currentMetricA * 0.001)* stepSize * motor1Direction, 'A', numsegments, cancellationToken, previousMetricA);
 
                         if (didMetricDecrease)
                         {
@@ -219,7 +356,7 @@ namespace Quantum_measurement_UI
                 {
                     // Move motor2 in the current direction
                     bool didMetricDecrease = await MoveMotorAndCheckMetric(
-                        motor2, stepSize * motor2Direction, 'B', numsegments, cancellationToken, previousMetricB);
+                        motor2, (int)(currentMetricB * 0.001)* stepSize * motor2Direction, 'B', numsegments, cancellationToken, previousMetricB);
 
                     if (didMetricDecrease)
                     {
@@ -232,11 +369,11 @@ namespace Quantum_measurement_UI
                         motor2Direction *= -1;
 
                         // Move motor back to previous position
-                        await MoveMotor(motor2, stepSize * motor2Direction, cancellationToken);
+                        await MoveMotor(motor2, (int)(currentMetricB * 0.001) * stepSize * motor2Direction, cancellationToken);
 
                         // Move motor2 in the opposite direction
                         didMetricDecrease = await MoveMotorAndCheckMetric(
-                            motor2, stepSize * motor2Direction, 'B', numsegments, cancellationToken, previousMetricB);
+                            motor2, (int)(currentMetricB * 0.001) * stepSize * motor2Direction, 'B', numsegments, cancellationToken, previousMetricB);
 
                         if (didMetricDecrease)
                         {
@@ -351,7 +488,7 @@ namespace Quantum_measurement_UI
 
                     double value = data[index];
 
-                    if (i >= 2 && i <= 5) // Positions 2,3,4,5 (e.g., A3,A4,A5,A6 for channel A)
+                    if (i >= 0 && i <= 3) // Positions 2,3,4,5 (e.g., A3,A4,A5,A6 for channel A)
                     {
                         sumGroup1 += value;
                     }
@@ -407,7 +544,7 @@ namespace Quantum_measurement_UI
         private async Task MoveMotor(int motorNumber, int steps, CancellationToken cancellationToken)
         {
             bool moveStatus = false;
-
+            
             await dispatcher.InvokeAsync(() =>
             {
                 moveStatus = this.motorController.MoveRelative(motorNumber, steps);
@@ -442,13 +579,14 @@ namespace Quantum_measurement_UI
             {
                 if (motorNumber == 1)
                 {
-                    this.mainWindow.AppendMessage($"Motor {motorNumber} moved {steps} steps to position {currentMotor1Position}");
+
                     this.mainWindow.LogExperimentEvent($"Motor {motorNumber} moved {steps} steps to position {currentMotor1Position}");
+                    this.mainWindow.LogMotorNMetric($"Motor {motorNumber} moved {steps} steps to position {currentMotor1Position}, Metric is {currentMetricA}");
                 }
                 else
                 {
-                    this.mainWindow.AppendMessage($"Motor {motorNumber} moved {steps} steps to position {currentMotor2Position}");
                     this.mainWindow.LogExperimentEvent($"Motor {motorNumber} moved {steps} steps to position {currentMotor2Position}");
+                    this.mainWindow.LogMotorNMetric($"Motor {motorNumber} moved {steps} steps to position {currentMotor2Position}, Metric is {currentMetricB}");
                 }
             });
 

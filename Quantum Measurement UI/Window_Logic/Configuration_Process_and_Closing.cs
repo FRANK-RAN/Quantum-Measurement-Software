@@ -43,23 +43,26 @@ namespace Quantum_measurement_UI
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string resultDirectory = Path.Combine(resultsBaseDirectory, timestamp);
 
-            // Ensure the timestamped directory exists
             Directory.CreateDirectory(resultDirectory);
             experimentLogDirectory = timestamp;
 
-            // Set the log file path within the timestamped directory
+            // Create each log file
             experimentLogFilePath = Path.Combine(resultDirectory, "exp.log");
-            experimentLogWriter = new StreamWriter(experimentLogFilePath);
+            motorMetricLogFilePath = Path.Combine(resultDirectory, "motor_metric.log");
+            sensitivityLogFilePath = Path.Combine(resultDirectory, "sensitivity.log");
+            droppedWindowLogFilePath = Path.Combine(resultDirectory, "dropped_window.log");
 
-            // Log the location of the experiment log
+            experimentLogWriter = new StreamWriter(experimentLogFilePath) { AutoFlush = true };
+            motorMetricLogWriter = new StreamWriter(motorMetricLogFilePath) { AutoFlush = true };
+            sensitivityLogWriter = new StreamWriter(sensitivityLogFilePath) { AutoFlush = true };
+            droppedWindowLogWriter = new StreamWriter(droppedWindowLogFilePath) { AutoFlush = true };
+
+            // Log header for experiment log
             experimentLogWriter.WriteLine($"Experiment Log: {experimentLogFilePath}\n");
 
-            // Use the specified path for the ini file
+            // Copy configuration file into the experiment log
             string configFilePath = IniFilePath;
-
             experimentLogWriter.WriteLine("The streaming configuration is as follows:\n");
-
-            // Copy the configuration from the ini file to the log file
             if (File.Exists(configFilePath))
             {
                 foreach (var line in File.ReadLines(configFilePath))
@@ -67,17 +70,15 @@ namespace Quantum_measurement_UI
                     experimentLogWriter.WriteLine(line);
                 }
             }
-
             experimentLogWriter.WriteLine("\n--- Experiment Start ---\n");
-            experimentLogWriter.Flush();
-            // Get filename and description from input fields (with fallback defaults)
+
+            // Save file description
             string filename = string.IsNullOrWhiteSpace(FileNameInput?.Text) ? "Measurement" : FileNameInput.Text;
             string description = string.IsNullOrWhiteSpace(DescriptionInput?.Text) ? "Conditions" : DescriptionInput.Text;
-
             string additionalLogPath = Path.Combine(resultDirectory, "file_description.log");
             File.WriteAllText(additionalLogPath, $"Filename: {filename}\nDescription: {description}\n");
-
         }
+
 
 
         private void StartESPUpdate_Click(object sender, RoutedEventArgs e)
@@ -1115,6 +1116,16 @@ namespace Quantum_measurement_UI
             {
                 await TerminateExperimentAsync(); // Safely terminate the experiment
                 motorController.Shutdown(); // Properly shut down the motor controller
+                daqServiceProcess?.Kill(); // Ensure the DAQ service is stopped
+
+
+                // Close all log writers
+                experimentLogWriter?.Close();
+                motorMetricLogWriter?.Close();
+                sensitivityLogWriter?.Close();
+                droppedWindowLogWriter?.Close();
+
+                AppendMessage("All resources cleaned up successfully.");    
             }
             catch (Exception ex)
             {

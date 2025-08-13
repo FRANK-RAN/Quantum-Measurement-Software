@@ -39,7 +39,7 @@ namespace Quantum_measurement_UI
             InitializeHeatValues();         // Initialize heatmap values (8x8 grid)
             InitializePixelChart();         // Initialize pixel chart of selected pixel of cross correlation matrix over time
             InitializeDAQCharts();         // Initialize DAQ charts
-            // Initialize Autobalancer
+                                           // Initialize Autobalancer
             autobalancer = new Autobalancer(
                 motorController,
                 () =>
@@ -50,8 +50,10 @@ namespace Quantum_measurement_UI
                     }
                 },
                 Dispatcher,
-                this // Pass the reference to MainWindow
+                this,
+                () => TimeToBalance   // NEW: gate
             );
+
 
             InitializeAutobalanceCharts();  // Initialize Autobalance Charts
 

@@ -40,6 +40,37 @@ namespace Quantum_measurement_UI
             }
         }
 
+        /// </summary>
+        public void LogMotorNMetric(string message)
+        {
+            if (experimentLogWriter != null)
+            {
+                string logEntry = $"{DateTime.Now:HH:mm:ss.fff}: {message}";
+                motorMetricLogWriter.WriteLine(logEntry);
+                motorMetricLogWriter.Flush(); // Ensure immediate write to the file
+            }
+        }
+        /// </summary>
+        public void LogSensitivity(string message)
+        {
+            if (experimentLogWriter != null)
+            {
+                string logEntry = $"{DateTime.Now:HH:mm:ss.fff}: {message}";
+                sensitivityLogWriter.WriteLine(logEntry);
+                sensitivityLogWriter.Flush(); // Ensure immediate write to the file
+            }
+        }
+        /// </summary>
+        public void LogDroppedWindow(string message)
+        {
+            if (experimentLogWriter != null)
+            {
+                string logEntry = $"{DateTime.Now:HH:mm:ss.fff}: {message}";
+                droppedWindowLogWriter.WriteLine(logEntry);
+                droppedWindowLogWriter.Flush(); // Ensure immediate write to the file
+            }
+        }
+
         /// <summary>
         /// Appends messages to the shared message log with a timestamp.
         /// </summary>

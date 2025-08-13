@@ -69,10 +69,12 @@ namespace Quantum_measurement_UI
                 byte[] expDirBytes = System.Text.Encoding.ASCII.GetBytes(experimentLogDirectory);
                 await pipeClient.WriteAsync(expDirBytes, 0, expDirBytes.Length); // Send the experiment directory
 
+                StartAutobalanceButton_Click(null, null); // Start the autobalancer
+
                 isPaused = false; // Data updates for signal chart and cross correlation matrix visualization can start
                 AppendMessage("Gage Digitizer Data Acquisition started.");
                 LogExperimentEvent("Gage Digitizer Data Acquisition started.");
-
+                StartDAQButton_Click(this, null); // Start the DAQ process (if not already started)
                 // Start data updates
                 StartDataUpdates();
                 // Start motor position updates automatically
@@ -102,9 +104,11 @@ namespace Quantum_measurement_UI
                 stopDelayStageProgram();                         // Stop delay stage program
 
                 Release();
-
+                
                 // Give background loops a moment to exit gracefully
                 await Task.Delay(500);
+
+                TerminateAutobalanceButton_Click(null, null); // Stop the autobalancer
 
                 // Tell the DAQ process to terminate
                 if (pipeClient?.IsConnected == true)

@@ -178,9 +178,16 @@
 
                                         <!-- Delay Stage Program Configuration -->
                                         <TextBlock Text="Delay Stage Program:" Margin="0,10,0,0" />
-                                        <TextBox Name="DelayStageProgram" Width="100" Text="Motion" />
+                                        <ComboBox Name="DelayStageProgram" Width="100" IsEditable="True" Text="Scan10">
+                                            <ComboBoxItem Content="Scan05" />
+                                            <ComboBoxItem Content="Scan1" />
+                                            <ComboBoxItem Content="Scan10" />
+                                            <ComboBoxItem Content="Scan20" />
+                                            <ComboBoxItem Content="Scan30" />
+                                            <ComboBoxItem Content="Scan40" />
+                                            <ComboBoxItem Content="Stay" />
+                                        </ComboBox>
                                         <TextBlock Text="(Name of program to execute)" FontSize="9" Foreground="Gray" Margin="0,2,0,0" />
-
 
                                         <!-- Apply Button -->
                                         <Button Content="Apply" Width="120" Click="ApplyConfigButton_Click" Margin="0,10,0,5"/>
@@ -217,24 +224,24 @@
                             </GroupBox>
 
                             <!-- Data Display Control GroupBox -->
-                            <GroupBox Header="Data Display Control" Margin="0,10,0,0">
-                                <StackPanel Margin="10">
-                                    <!-- Pause Button, centered -->
-                                    <Button Name="PauseButton"
-                                Content="Pause"
-                                Width="120"
-                                HorizontalAlignment="Center"
-                                Margin="0,10,0,5"
-                                Click="PauseButton_Click"/>
+                            <GroupBox Header="Home Zero" Margin="0,10,0,0">
+                                <StackPanel Orientation="Vertical" Margin="8" VerticalAlignment="Center">
+                                    <TextBlock Text="Time 0 position:" VerticalAlignment="Center" Margin="0,0,0,4"/>
 
-                                    <!-- Resume Button, centered -->
-                                    <Button Name="ResumeButton"
-                                Content="Resume"
-                                Width="120"
-                                HorizontalAlignment="Center"
-                                Margin="0,5,0,10"
-                                Click="ResumeButton_Click"/>
+                                    <TextBox Name="TimeZeroPositionInput"
+             Width="100"
+             VerticalAlignment="Center"
+             Text="25.28"
+             KeyDown="TimeZeroPositionInput_KeyDown"
+             Margin="0,0,0,8"/>
+
+                                    <Button Content="Go to Time 0"
+            Width="130"
+            Click="GoToTimeZero_Click"/>
                                 </StackPanel>
+
+
+
                             </GroupBox>
 
 

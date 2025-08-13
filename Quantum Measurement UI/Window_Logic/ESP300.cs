@@ -8,6 +8,8 @@ using System.Diagnostics;
 using QuantumSqueezingUI;
 using Quantum_measurement_UI;
 using System.Windows.Media;
+using System.Globalization;
+using System.Windows.Input;
 
 namespace Quantum_measurement_UI
 {
@@ -60,6 +62,41 @@ namespace Quantum_measurement_UI
             }
         }
 
+        private void TimeZeroPositionInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+                GoToTimeZero_Click(sender, new RoutedEventArgs());
+        }
+
+        private void GoToTimeZero_Click(object sender, RoutedEventArgs e)
+        {
+            if (!double.TryParse(TimeZeroPositionInput.Text.Trim(),
+                                 NumberStyles.Float,
+                                 CultureInfo.InvariantCulture,
+                                 out var pos))
+            {
+                MessageBox.Show("Please enter a valid number for the Time 0 position.",
+                                "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                if (esp300Controller is null)
+                    throw new InvalidOperationException("ESP controller is not initialized.");
+
+                string axisPrefix = esp300Controller.Axis.ToString();
+                esp300Controller.SendCommand($"{axisPrefix}PA{pos.ToString(CultureInfo.InvariantCulture)}");
+
+                AppendMessage($"Commanded ESP to move to Time 0 position: {pos:F3} mm.");
+                LogExperimentEvent($"Commanded ESP to move to Time 0 position: {pos:F3} mm.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to move to Time 0 ({pos}): {ex.Message}",
+                                "ESP Move Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
 
         private void ESP_StopMotion_Click(object sender, RoutedEventArgs e)

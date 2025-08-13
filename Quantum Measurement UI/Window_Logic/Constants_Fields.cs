@@ -162,8 +162,15 @@ namespace Quantum_measurement_UI
 
         // For experiment log
         private string experimentLogDirectory;      // Stores the directory name for the experiment log
-        private string? experimentLogFilePath;       // Stores the full path to the experiment log file
-        private StreamWriter? experimentLogWriter;    // StreamWriter for writing to the experiment log
+        private StreamWriter experimentLogWriter;
+        private StreamWriter motorMetricLogWriter;
+        private StreamWriter sensitivityLogWriter;
+        private StreamWriter droppedWindowLogWriter;
+
+        private string experimentLogFilePath;
+        private string motorMetricLogFilePath;
+        private string sensitivityLogFilePath;
+        private string droppedWindowLogFilePath;
 
         // For experiment status and elapsed time
         private DateTime experimentStartTime;   // Stores the start time of the experiment
