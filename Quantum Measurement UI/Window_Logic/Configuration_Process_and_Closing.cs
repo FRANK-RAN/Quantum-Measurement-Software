@@ -307,7 +307,7 @@ namespace Quantum_measurement_UI
         private async void ConnectDAQButton_Click(object sender, RoutedEventArgs e)
         {
             bool condition = await Connection();
-            if (condition) MessageBox.Show("Connected to QuantumDAQService!");
+            if (condition) AppendMessage("Connected to QuantumDAQService!");
         }
 
         private async Task<bool> Connection()
@@ -335,7 +335,6 @@ namespace Quantum_measurement_UI
             catch (Exception ex)
             {
                 AppendMessage("Failed to connect to QuantumDAQService: " + ex.Message);
-                MessageBox.Show("Failed to connect to QuantumDAQService: " + ex.Message);
                 return false;
             }
         }
@@ -495,7 +494,7 @@ namespace Quantum_measurement_UI
 
         private void ReleaseDAQPipeButton_Click(object sender, RoutedEventArgs e) // Wrapper Method to interact with the button
         {
-            if(Release()) MessageBox.Show("DAQ Pipe released successfully.");
+            if(Release()) AppendMessage("DAQ Pipe released successfully.");
         }
 
         private bool Release()
@@ -949,7 +948,7 @@ namespace Quantum_measurement_UI
                 }
             }
             daqUpdateCounter++;
-            if (daqUpdateCounter >= 100)
+            if (daqUpdateCounter >= 10)
             {
                 daqUpdateCounter = 0;
                 Dispatcher.Invoke(UpdateShotNoise_CorrectedCrossCorrelation);
@@ -1117,6 +1116,7 @@ namespace Quantum_measurement_UI
                 await TerminateExperimentAsync(); // Safely terminate the experiment
                 motorController.Shutdown(); // Properly shut down the motor controller
                 daqServiceProcess?.Kill(); // Ensure the DAQ service is stopped
+                Release(); // Release the DAQ pipe if it exists
 
 
                 // Close all log writers

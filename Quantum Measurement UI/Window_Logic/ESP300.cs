@@ -227,6 +227,31 @@ namespace Quantum_measurement_UI
                 String stage_info = esp300Controller.GetDelayStageInfo();
                 AppendMessage($"Delay Stage Info: {stage_info}");
                 LogExperimentEvent($"Delay Stage Info: {stage_info}");
+                GoToTimeZero_Click(sender: null, e: null); // Move to Time 0 position
+
+                // Parse Time Zero position from UI for checking
+                if (!double.TryParse(TimeZeroPositionInput.Text.Trim(),
+                                     NumberStyles.Float,
+                                     CultureInfo.InvariantCulture,
+                                     out var timeZeroPosition))
+                {
+                    AppendMessage("Invalid Time Zero position input.");
+                    LogExperimentEvent("Invalid Time Zero position input.");
+                    return;
+                }
+
+                // Wait until position is at Time Zero before executing
+                const double tolerance = 0.001; // acceptable difference
+                bool atTimeZero = false;
+                while (!atTimeZero)
+                {
+                    double currentPos = esp300Controller.GetCurrentPosition(); // pass axis if needed
+                    atTimeZero = Math.Abs(currentPos - timeZeroPosition) <= tolerance;
+
+                    if (!atTimeZero)
+                        System.Threading.Thread.Sleep(1000);
+                }
+
 
                 // Execute the specified program
                 esp300Controller.ExecuteProgram(programName);

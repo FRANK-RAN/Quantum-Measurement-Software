@@ -162,6 +162,7 @@ namespace Quantum_measurement_UI
 
         // For experiment log
         private string experimentLogDirectory;      // Stores the directory name for the experiment log
+
         private StreamWriter experimentLogWriter;
         private StreamWriter motorMetricLogWriter;
         private StreamWriter sensitivityLogWriter;
@@ -181,7 +182,7 @@ namespace Quantum_measurement_UI
         // For the GageStreamThruGPU process
         private Process? gageStreamProcess;      // Process for starting the GageStreamThruGPU program
 
-        private bool TimeToBalance = false; // Flag to indicate if it's time to balance the motor
+        private bool TimeToBalance = true; // Flag to indicate if it's time to balance the motor
         private bool SignalDropped = false; // Flag to indicate if the signal has dropped
         
         #endregion

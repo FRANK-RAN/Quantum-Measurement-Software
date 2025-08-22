@@ -36,6 +36,20 @@ namespace Quantum_measurement_UI
         private int currentMotor1Position;
         private int currentMotor2Position;
 
+        // Direction that reduces a *positive* metric for each channel. Flip on the bench if needed.
+        public int A_PosMetricReduceDir = +1; // motor 1
+        public int B_PosMetricReduceDir = -1; // motor 2
+
+        // Control/hysteresis
+        private const double Deadband = 1e-6;           // inside this, do nothing
+        private const double HysteresisFactor = 2.0;    // sign must exceed Deadband*HysteresisFactor to accept a reversal
+
+        // Adaptive step limits
+        private const int MinStep = 1;
+        private const int MaxStep = 8;
+        private double metricThreshold;  // set from Start(threshold,...)
+
+
         // *** Modified constructor to accept MainWindow reference ***
         // Autobalancer.cs  (ctor signature + assignment)
         public Autobalancer(
@@ -60,6 +74,8 @@ namespace Quantum_measurement_UI
 
         public void Start(double threshold, int numsegments)
         {
+
+
             if (IsRunning)
             {
                 mainWindow.AppendMessage("Autobalance is already running.");
@@ -86,10 +102,10 @@ namespace Quantum_measurement_UI
                         // Stay active the whole window
                         while (isTimeToBalance() && !token.IsCancellationRequested)
                         {
-                            await RunSingleSessionMinimize(numsegments, token);
+                            await RunSingleSessionMinimize(numsegments, token, threshold);
 
                             // Optional: small delay between sweeps to avoid thrashing
-                            await Task.Delay(100, token);
+                            await Task.Delay(75, token);
                         }
                     }
                 }
@@ -102,117 +118,239 @@ namespace Quantum_measurement_UI
             });
         }
 
-        private async Task RunSingleSessionMinimize(int numsegments, CancellationToken cancellationToken)
+      
+
+        /// <summary>
+        /// Waits until motor finishes moving.
+        /// </summary>
+        private async Task WaitForMotorToStop(int motorNumber, CancellationToken cancellationToken)
         {
-            const int motor1 = 1, motor2 = 2;
-            int stepSize = 1;
-            const double epsilon = 1e-6; // anti-chatter around zero
-            while (!cancellationToken.IsCancellationRequested && isTimeToBalance())
+            bool isMoving = true;
+            while (isMoving && !cancellationToken.IsCancellationRequested)
             {
-                bool motor1Done = false, motor2Done = false;
-
-            motorController.GetCurrentPosition(1, out currentMotor1Position);
-            motorController.GetCurrentPosition(2, out currentMotor2Position);
-
-            dispatcher.Invoke(() =>
-            {
-                mainWindow.AppendMessage($"[AutoBalance] Session start @ M1={currentMotor1Position}, M2={currentMotor2Position}");
-                mainWindow.LogExperimentEvent($"[AutoBalance] Session start @ M1={currentMotor1Position}, M2={currentMotor2Position}");
-            });
-       
-                int dir1 = 1, dir2 = 1;
-
-            short[] buf = getDataBuffer();
-            int startA = GetStartIndex(buf, 'A');
-            int startB = GetStartIndex(buf, 'B');
-            currentMetricA = ComputeFlatnessMetric(buf, numsegments, 'A', startA);
-            currentMetricB = ComputeFlatnessMetric(buf, numsegments, 'B', startB);
-            double prevA = currentMetricA, prevB = currentMetricB;
-
-            while (!cancellationToken.IsCancellationRequested && (!motor1Done || !motor2Done))
-            {
-                // Refresh metrics (for charting & decisions)
-                buf = getDataBuffer();
-                startA = GetStartIndex(buf, 'A');
-                startB = GetStartIndex(buf, 'B');
-                currentMetricA = ComputeFlatnessMetric(buf, numsegments, 'A', startA);
-                currentMetricB = ComputeFlatnessMetric(buf, numsegments, 'B', startB);
-                UpdateChartData();
-
-                // === Motor1 / Channel A (minimize to ~0) ===
-                if (!motor1Done)
-                {
-                    bool improved = await MoveMotorAndCheckMetric(motor1, stepSize * dir1, 'A', numsegments, cancellationToken, prevA);
-                    if (improved && (prevA - currentMetricA) > epsilon)
-                    {
-                        prevA = currentMetricA;
-                    }
-                    else
-                    {
-                        // reverse and try once
-                        dir1 *= -1;
-                        await MoveMotor(motor1, stepSize * dir1, cancellationToken);
-                        improved = await MoveMotorAndCheckMetric(motor1, stepSize * dir1, 'A', numsegments, cancellationToken, prevA);
-
-                        if (improved && (prevA - currentMetricA) > epsilon)
-                        {
-                            prevA = currentMetricA;
-                        }
-                        else
-                        {
-                            motor1Done = true;
-                            dispatcher.Invoke(() =>
-                            {
-                                mainWindow.AppendMessage("Autobalance M1: local MIN reached (near zero).");
-                                mainWindow.LogExperimentEvent("Autobalance M1: local MIN reached (near zero).");
-                            });
-                        }
-                    }
-                }
-
-                // === Motor2 / Channel B (minimize to ~0) ===
-                if (!motor2Done)
-                {
-                    bool improved = await MoveMotorAndCheckMetric(motor2, stepSize * dir2, 'B', numsegments, cancellationToken, prevB);
-                    if (improved && (prevB - currentMetricB) > epsilon)
-                    {
-                        prevB = currentMetricB;
-                    }
-                    else
-                    {
-                        dir2 *= -1;
-                        await MoveMotor(motor2, stepSize * dir2, cancellationToken);
-                        improved = await MoveMotorAndCheckMetric(motor2, stepSize * dir2, 'B', numsegments, cancellationToken, prevB);
-
-                        if (improved && (prevB - currentMetricB) > epsilon)
-                        {
-                            prevB = currentMetricB;
-                        }
-                        else
-                        {
-                            motor2Done = true;
-                            dispatcher.Invoke(() =>
-                            {
-                                mainWindow.AppendMessage("Autobalance M2: local MIN reached (near zero).");
-                                mainWindow.LogExperimentEvent("Autobalance M2: local MIN reached (near zero).");
-                            });
-                        }
-                    }
-                }
-
-                await Task.Delay(100, cancellationToken);
-            }
-
-            dispatcher.Invoke(() =>
-            {
-                mainWindow.AppendMessage("[AutoBalance] Session complete. Waiting for next TimeToBalance window…");
-                mainWindow.LogExperimentEvent("[AutoBalance] Session complete. Waiting for next TimeToBalance window…");
-                
-            });
-
-                await Task.Delay(100, cancellationToken);
+                motorController.IsMotionDone(motorNumber, out bool done);
+                isMoving = !done;
+                await Task.Delay(50, cancellationToken);
             }
         }
+
+
+        private async Task WaitForMotorReady(int motorNumber, CancellationToken cancellationToken)
+        {
+            bool isMotionDone = false;
+            while (!isMotionDone && !cancellationToken.IsCancellationRequested)
+            {
+                motorController.IsMotionDone(motorNumber, out isMotionDone);
+                await Task.Delay(200, cancellationToken);
+            }
+
+            // Extra delay for firmware settle
+            await Task.Delay(100, cancellationToken);
+
+            // Just call the error check (logging happens internally)
+            motorController.CheckForErrors();
+        }
+
+
+        private async Task RunSingleSessionMinimize(int numsegments, CancellationToken cancellationToken, double threshold)
+        {
+            dispatcher.Invoke(() =>
+            {
+                mainWindow.LogExperimentEvent("[AutoBalance] Coarse tuning session started.");
+            });
+
+            const double tolerance = 0.00005; // volts
+            const int maxStep = 50;        // max motor steps in one move
+            const double coarseFactor = 800; // volts-to-steps for large errors
+            const double fineFactor = 800;  // volts-to-steps for small errors
+
+            while (!cancellationToken.IsCancellationRequested && isTimeToBalance())
+            {
+                // Guard against empty DAQ buffers
+                if (mainWindow.DAQChannel1Values.Count == 0 ||
+                    mainWindow.DAQChannel2Values.Count == 0 ||
+                    mainWindow.DAQChannel3Values.Count == 0 ||
+                    mainWindow.DAQChannel4Values.Count == 0)
+                {
+                    await Task.Delay(100, cancellationToken);
+                    continue;
+                }
+                // === Step 1: Calculate voltage differences ===
+                double diffM1 = mainWindow.DAQChannel1Values[^1] - mainWindow.DAQChannel2Values[^1];
+                double diffM2 = mainWindow.DAQChannel3Values[^1] - mainWindow.DAQChannel4Values[^1];
+
+                // === Step 2: Motor 1 ===
+                // Motor 1
+                if (Math.Abs(diffM1) > tolerance)
+                {
+                    double factor = Math.Abs(diffM1) > 0.01 ? coarseFactor : fineFactor;
+                    int step1 = (int)Math.Min(maxStep, Math.Abs(diffM1) * factor);
+                    int dir1 = diffM1 > 0 ? 1 : -1;
+
+                    dispatcher.Invoke(() =>
+                    {
+                        mainWindow.PowerDiffCh1.Text = diffM1.ToString("F4");
+                    }); 
+                    motorController.CheckForErrors(); // skip or throw if error detected
+                    await SafeMoveMotor(1, step1 * dir1, cancellationToken);
+                    await WaitForMotorReady(1, cancellationToken);
+                }
+
+                // Motor 2
+                if (Math.Abs(diffM2) > tolerance)
+                {
+                    double factor = Math.Abs(diffM2) > 0.01 ? coarseFactor : fineFactor;
+                    int step2 = (int)Math.Min(maxStep, Math.Abs(diffM2) * factor);
+                    int dir2 = diffM2 > 0 ? -1 : 1;
+                    dispatcher.Invoke(() =>
+                    {
+                        mainWindow.PowerDiffCh2.Text = diffM2.ToString("F4");
+                    });
+                    motorController.CheckForErrors(); // skip or throw if error detected
+                    await SafeMoveMotor(2, step2 * dir2, cancellationToken);
+                    await WaitForMotorReady(2, cancellationToken);
+                }
+
+                await Task.Delay(100, cancellationToken);
+            }
+            dispatcher.Invoke(() =>
+            {
+                mainWindow.LogExperimentEvent("[AutoBalance] Coarse tuning session ended.");
+            });
+        }
+
+        private async Task SafeMoveMotor(int motorNumber, int steps, CancellationToken token)
+        {
+            try
+            {
+                await MoveMotor(motorNumber, steps, token);
+                await WaitForMotorReady(motorNumber, token);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("114") || ex.Message.Contains("MOTION IN PROGRESS"))
+                {
+                    // Just log and skip this cycle
+                    dispatcher.Invoke(() =>
+                    {
+                        mainWindow.AppendMessage($"[AutoBalance] Motor {motorNumber}: still in motion, skipping this move.");
+                    });
+                }
+                else
+                {
+                    // Other errors should still be shown
+                    dispatcher.Invoke(() =>
+                    {
+                        mainWindow.AppendMessage($"[AutoBalance] Motor {motorNumber} error: {ex.Message}");
+                    });
+                }
+            }
+        }
+
+
+
+        /*
+                private async Task RunSingleSessionMinimize(int numsegments, CancellationToken cancellationToken, double threshold)
+                {
+                    const int motor1 = 1, motor2 = 2;
+                    int stepSizeA = GetAdaptiveStep(currentMetricA, threshold *//* or MetricThreshold *//*);
+                    int stepSizeB = GetAdaptiveStep(currentMetricB, threshold);
+
+                    // Apply scaling when metric is far from zero
+                    await CoarseTuneMotors(cancellationToken); // coarse stage
+
+                    const double epsilon = 1e-6; // anti-chatter around zero
+                    while (!cancellationToken.IsCancellationRequested && isTimeToBalance())
+                    {
+                        bool motor1Done = false, motor2Done = false;
+
+                    motorController.GetCurrentPosition(1, out currentMotor1Position);
+                    motorController.GetCurrentPosition(2, out currentMotor2Position);
+
+                    dispatcher.Invoke(() =>
+                    {
+                        mainWindow.AppendMessage($"[AutoBalance] Session start @ M1={currentMotor1Position}, M2={currentMotor2Position}");
+                        mainWindow.LogExperimentEvent($"[AutoBalance] Session start @ M1={currentMotor1Position}, M2={currentMotor2Position}");
+                    });
+
+
+
+                    short[] buf = getDataBuffer();
+                    int startA = GetStartIndex(buf, 'A');
+                    int startB = GetStartIndex(buf, 'B');
+                    currentMetricA = ComputeFlatnessMetric(buf, numsegments, 'A', startA);
+                    currentMetricB = ComputeFlatnessMetric(buf, numsegments, 'B', startB);
+                    double prevA = currentMetricA, prevB = currentMetricB;
+
+                    while (!cancellationToken.IsCancellationRequested && isTimeToBalance() && ( !motor1Done || !motor2Done))
+                    {
+                        // Refresh metrics (for charting & decisions)
+                        buf = getDataBuffer();
+                        startA = GetStartIndex(buf, 'A');
+                        startB = GetStartIndex(buf, 'B');
+                        currentMetricA = ComputeFlatnessMetric(buf, numsegments, 'A', startA);
+                        currentMetricB = ComputeFlatnessMetric(buf, numsegments, 'B', startB);
+                        UpdateChartData();
+
+                            // === Motor 1 / Channel A ===
+                            if (!motor1Done)
+                            {
+                                int dir1 = (currentMetricA < 0) ? -1 : +1;  // negative if metric<0, positive if metric>0
+                                if (Math.Abs(currentMetricA) > 150)
+                                    stepSizeA *= 1;
+
+                                bool improved = await MoveMotorAndCheckMetric(motor1, stepSizeA * dir1, 'A', numsegments, cancellationToken, prevA);
+                                await Task.Delay(100, cancellationToken);
+                                if (Math.Abs(currentMetricA) < epsilon)
+                                {
+                                    prevA = currentMetricA;
+                                    // optional: stop this motor if you want
+                                }
+                                else
+                                {
+                                    prevA = currentMetricA;
+                                }
+                            }
+
+                            // === Motor 2 / Channel B ===
+                            if (!motor2Done)
+                            {
+                                int dir2 = (currentMetricB < 0) ? +1 : -1;  // positive if metric<0, negative if metric>0
+
+                                if (Math.Abs(currentMetricB) > 150)
+                                    stepSizeB *= 8;
+                                bool improved = await MoveMotorAndCheckMetric(motor2, stepSizeB * dir2, 'B', numsegments, cancellationToken, prevB);
+                                await Task.Delay(100, cancellationToken);
+                                if (Math.Abs(currentMetricB) < epsilon)
+                                {
+                                    prevB = currentMetricB;
+                                    // optional: stop this motor if you want
+                                }
+                                else
+                                {
+                                    prevB = currentMetricB;
+                                }
+                            }
+
+                            dispatcher.Invoke(() =>
+                            {
+                                     mainWindow.CalibrationMetricA.Text = currentMetricA.ToString("F4");
+                                    mainWindow.
+        .Text = currentMetricB.ToString("F4");
+                                      });
+
+                    }
+
+                    dispatcher.Invoke(() =>
+                    {
+                        mainWindow.AppendMessage("[AutoBalance] Session complete. Waiting for next TimeToBalance window…");
+                        mainWindow.LogExperimentEvent("[AutoBalance] Session complete. Waiting for next TimeToBalance window…");
+
+                    });
+
+                        await Task.Delay(100, cancellationToken);
+                    }
+                }*/
 
 
         public void Stop()
@@ -229,178 +367,7 @@ namespace Quantum_measurement_UI
             mainWindow.LogMotorNMetric("Autobalance stopped.");
         }
 
-        private async Task AutobalanceProcess(double threshold, int numsegments, CancellationToken cancellationToken)
-        {
-            int motor1 = 1;
-            int motor2 = 2;
-            int stepSize = 1; // Define initial step size for motor movement
-
- 
-            bool motor1completed = false;
-            bool motor2completed = false;
-
-            // Initialize motor positions and directions
-            motorController.GetCurrentPosition(1, out currentMotor1Position);
-            motorController.GetCurrentPosition(2, out currentMotor2Position);
-
-            this.dispatcher.Invoke(() =>
-            {
-                // *** Use AppendMessage instead of MessageBox.Show ***
-                this.mainWindow.AppendMessage($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
-                this.mainWindow.LogExperimentEvent($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
-                this.mainWindow.LogMotorNMetric($"Initial motor positions: Motor1 = {currentMotor1Position}, Motor2 = {currentMotor2Position}");
-
-            }); 
-
-            int motor1Direction = 1; // Start by moving positive direction
-            int motor2Direction = 1;
-            int startIndex_A = 0; // Start index for data points being processed for metric calculation
-            int startIndex_B = 0;
-
-            // Read data buffer
-            short[] currentDataBuffer = getDataBuffer();
-            startIndex_A = GetStartIndex(currentDataBuffer, 'A');           // Get start index for channel A where the waveform starts
-            startIndex_B = GetStartIndex(currentDataBuffer, 'B');           // Get start index for channel B where the waveform starts
-
-            // Compute metrics for channels A and B
-            currentMetricA = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'A', startIndex_A);  // Compute flatness metric for channel A
-            currentMetricB = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'B', startIndex_B);  // Compute flatness metric for channel B
-            double previousMetricA = currentMetricA;
-            double previousMetricB = currentMetricB;
-
-
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                // Read data buffer
-                currentDataBuffer = getDataBuffer();
-                startIndex_A = GetStartIndex(currentDataBuffer, 'A');           // Get start index for channel A where the waveform starts
-                startIndex_B = GetStartIndex(currentDataBuffer, 'B');           // Get start index for channel B where the waveform starts
-
-                // Compute metrics for channels A and B
-                currentMetricA = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'A', startIndex_A);  // Compute flatness metric for channel A
-                currentMetricB = ComputeFlatnessMetric(currentDataBuffer, numsegments, 'B', startIndex_B);  // Compute flatness metric for channel B
-
-                // Update charts
-                UpdateChartData();
-
-                // Check completion based on threshold
-                if (currentMetricA < threshold)
-                {
-                    motor1completed = true;
-                }
-
-                if (currentMetricB < threshold)
-                {
-                    motor2completed = true;
-                }
-
-                if (motor1completed && motor2completed)
-                {
-                    // Autobalance completed
-                    this.dispatcher.Invoke(() =>
-                    {
-                        // *** Use AppendMessage instead of MessageBox.Show ***
-                        this.mainWindow.AppendMessage("Autobalance completed.");
-                        this.mainWindow.LogExperimentEvent("Autobalance completed.");
-                        this.mainWindow.LogMotorNMetric("Autobalance completed.");
-                    });
-                    
-                    break;
-                }
-
-                // For channel A and motor1
-                if (!motor1completed)
-                {
-                    // Move motor1 in the current direction
-                    bool didMetricDecrease = await MoveMotorAndCheckMetric(
-                        motor1, (int)(currentMetricA *0.001)* stepSize * motor1Direction, 'A', numsegments, cancellationToken, previousMetricA);
-
-                    if (didMetricDecrease)
-                    {
-                        // Metric decreased, keep moving in the same direction
-                        previousMetricA = currentMetricA;
-                    }
-                    else  // Metric didn't decrease
-                    {
-                        // Metric didn't decrease, reverse direction and try once
-                        motor1Direction *= -1;
-
-                        // Move motor back to previous position
-                        await MoveMotor(motor1, (int)(currentMetricA * 0.001) * stepSize * motor1Direction, cancellationToken);
-
-                        // Move motor1 in the opposite direction for one step
-                        didMetricDecrease = await MoveMotorAndCheckMetric(
-                            motor1, (int)(currentMetricA * 0.001)* stepSize * motor1Direction, 'A', numsegments, cancellationToken, previousMetricA);
-
-                        if (didMetricDecrease)
-                        {
-                            // Metric decreased after reversing, continue in new direction
-                            previousMetricA = currentMetricA;
-                        }
-                        else
-                        {
-                            // Metric didn't decrease in either direction, consider motor1 completed
-                            motor1completed = true;
-                            dispatcher.Invoke(() =>
-                            {
-                                // *** Use AppendMessage instead of MessageBox.Show ***
-                                this.mainWindow.AppendMessage("Autobalance for motor 1 completed due to valley bottom."); 
-                                this.mainWindow.LogExperimentEvent("Autobalance for motor 1 completed due to valley bottom.");
-                            });
-                        }
-                    }
-                }
-
-                // For channel B and motor2
-                if (!motor2completed)
-                {
-                    // Move motor2 in the current direction
-                    bool didMetricDecrease = await MoveMotorAndCheckMetric(
-                        motor2, (int)(currentMetricB * 0.001)* stepSize * motor2Direction, 'B', numsegments, cancellationToken, previousMetricB);
-
-                    if (didMetricDecrease)
-                    {
-                        // Metric decreased, keep moving in the same direction
-                        previousMetricB = currentMetricB;
-                    }
-                    else
-                    {
-                        // Metric didn't decrease, reverse direction and try once
-                        motor2Direction *= -1;
-
-                        // Move motor back to previous position
-                        await MoveMotor(motor2, (int)(currentMetricB * 0.001) * stepSize * motor2Direction, cancellationToken);
-
-                        // Move motor2 in the opposite direction
-                        didMetricDecrease = await MoveMotorAndCheckMetric(
-                            motor2, (int)(currentMetricB * 0.001) * stepSize * motor2Direction, 'B', numsegments, cancellationToken, previousMetricB);
-
-                        if (didMetricDecrease)
-                        {
-                            // Metric decreased after reversing, continue in new direction
-                            previousMetricB = currentMetricB;
-                        }
-                        else
-                        {
-                            // Metric didn't decrease in either direction, consider motor2 completed
-                            motor2completed = true;
-                            this.dispatcher.Invoke(() =>
-                            {
-                                // *** Use AppendMessage instead of MessageBox.Show ***
-                               this.mainWindow.AppendMessage("Autobalance for motor 2 completed due to valley bottom."); 
-                               this.mainWindow.LogExperimentEvent("Autobalance for motor 2 completed due to valley bottom.");
-                            });
-                        }
-                    }
-                }
-
-                // Wait for a while before next iteration if necessary
-                await Task.Delay(100, cancellationToken);
-            }
-
-            IsRunning = false;
-        }
-
+   
         // Update chart data of motor positions and metrics
         private void UpdateChartData()
         {
@@ -463,55 +430,91 @@ namespace Quantum_measurement_UI
         // numSegments is the number of segments to calculate for metric
         // channel is the channel to calculate the metric for ('A' or 'B')
         // startIndex is the starting index for data points being processed, the start index should be start of the waveform, the point next to the lowest point
-        private double ComputeFlatnessMetric(short[] data, int numSegments, char channel, int startIndex)
+/*        private double ComputeFlatnessMetric(short[] data, int numSegments, char channel, int startIndex)
         {
-            int segmentLength = 16;  // Each segment has 16 elements of two channels (A1,B1,...,A8,B8)
+            const int segmentLength = 16;
+            if (data == null || startIndex < 0 || startIndex >= data.Length) return 0.0;
+
             int totalSegments = (data.Length - startIndex) / segmentLength;
             int segmentsToProcess = Math.Min(numSegments, totalSegments);
+            if (segmentsToProcess <= 0) return 0.0;
 
-            double sumMetric = 0;
-
-            // Determine offset based on specified channel
             int channelOffset = (channel == 'A') ? 0 : 1;
+            double sumMetric = 0.0;
 
             for (int s = 0; s < segmentsToProcess; s++)
             {
-                int baseIndex = s * segmentLength;
+                int baseIndex = startIndex + s * segmentLength;
 
-                double sumGroup1 = 0; // Sum of A3+A4+A5+A6 or B3+B4+B5+B6
-                double sumGroup2 = 0; // Sum of A1+A2+A7+A8 or B1+B2+B7+B8
+                // position 2 -> i = 1 ; position 3 -> i = 2
+                int idx2 = baseIndex + (1 * 2) + channelOffset;
+                int idx3 = baseIndex + (2 * 2) + channelOffset;
 
-                // Positions within a segment for the specified channel
-                for (int i = 0; i < 8; i++)
+                double v2 = (idx2 >= 0 && idx2 < data.Length) ? data[idx2] : 0.0;
+                double v3 = (idx3 >= 0 && idx3 < data.Length) ? data[idx3] : 0.0;
+
+                // Keep the sign — no Math.Abs()
+                double metric = (v2 + v3) / 2 / 32768 * 240;
+
+                sumMetric = metric;
+            }
+
+            return sumMetric;
+        }*/
+
+        private double ComputeFlatnessMetric(short[] data, int numSegments, char channel, int startIndex)
+        {
+            const int segmentLength = 16;
+            if (data == null || startIndex < 0 || startIndex >= data.Length) return 0.0;
+
+            int totalSegments = (data.Length - startIndex) / segmentLength;
+            int segmentsToProcess = Math.Min(numSegments, totalSegments);
+            if (segmentsToProcess <= 0) return 0.0;
+
+            int channelOffset = (channel == 'A') ? 0 : 1;
+            double sumMetric = 0.0;
+
+            for (int s = 0; s <1; s++)
+            {
+                double v2;
+                double v3;
+                if (channel == 'A')
                 {
-                    int index = startIndex + baseIndex + i * 2 + channelOffset; // Calculate index for the specified channel
 
-                    double value = data[index];
-
-                    if (i >= 0 && i <= 3) // Positions 2,3,4,5 (e.g., A3,A4,A5,A6 for channel A)
-                    {
-                        sumGroup1 += value;
-                    }
-                    else // Positions 0,1,6,7 (e.g., A1,A2,A7,A8 for channel A)
-                    {
-                        sumGroup2 += value;
-                    }
+                     v2 = data[2] ;
+                     v3 = data[4] ;
+                }
+                else
+                {
+                     v2 = data[3];
+                     v3 = data[5];
                 }
 
-                double metric = Math.Abs(sumGroup1 - sumGroup2);
-                sumMetric += metric;
+
+                // Keep the sign — no Math.Abs()
+                double metric = (v2 + v3) / 2 / 32768 * 240;
+
+                sumMetric = metric;
             }
 
-            if (segmentsToProcess > 0)
-            {
-                return sumMetric / segmentsToProcess; // Average metric over the processed segments
-            }
-            else
-            {
-                // Not enough data to process even one segment
-                return 0;
-            }
+            return sumMetric;
         }
+
+
+
+
+        // Grows step size as metric deviates from 0.
+        // Example: metric <= thr => minStep; metric = 10*thr => up to maxStep.
+        private int GetAdaptiveStep(double metric, double thr, int minStep = 1, int maxStep = 8)
+        {
+            if (thr <= 0) return minStep;
+            double factor = Math.Max(1.0, metric / thr);
+            int step = (int)Math.Ceiling(minStep * factor);
+            if (step > maxStep) step = maxStep;
+            if (step < minStep) step = minStep;
+            return step;
+        }
+
 
         // aysnc method to move motor and check if metric decreases 
         private async Task<bool> MoveMotorAndCheckMetric(

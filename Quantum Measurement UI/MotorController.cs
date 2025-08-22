@@ -135,6 +135,7 @@ namespace Quantum_measurement_UI
         }
 
         // Check the motor controller for any error messages
+        // Check the motor controller for any error messages
         public void CheckForErrors()
         {
             string errorMsg = string.Empty;
@@ -144,11 +145,26 @@ namespace Quantum_measurement_UI
             {
                 Console.WriteLine("I/O Error: Could not get error status.");
             }
-            else if (!string.IsNullOrEmpty(errorMsg) && errorMsg.Split(new string[] { ", " }, StringSplitOptions.RemoveEmptyEntries)[0] != "0")
+            else if (!string.IsNullOrEmpty(errorMsg))
             {
-                Console.WriteLine($"Device Error: {errorMsg}");
-                throw new Exception($"Device Error: {errorMsg}");
+                var parts = errorMsg.Split(new string[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 0 && parts[0] != "0")
+                {
+                    string errorCode = parts[0];
+
+                    // Special case: bypass "MOTION IN PROGRESS"
+                    if (errorCode == "314" || errorCode == "214" || errorCode == "114")
+                    {
+                        Console.WriteLine($"Non-fatal: {errorMsg} (skipped)");
+                        return; // skip throwing
+                    }
+
+                    // Otherwise throw for all other errors
+                    Console.WriteLine($"Device Error: {errorMsg}");
+                    throw new Exception($"Device Error: {errorMsg}");
+                }
             }
         }
+
     }
 }

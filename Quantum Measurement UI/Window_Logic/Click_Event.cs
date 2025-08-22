@@ -98,7 +98,7 @@ namespace Quantum_measurement_UI
                 {
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        motorController.CheckForErrors();
+                         motorController.CheckForErrors();
                         motorController.IsMotionDone(motorNumber, out isMotionDone);
                     });
                     await Task.Delay(50);

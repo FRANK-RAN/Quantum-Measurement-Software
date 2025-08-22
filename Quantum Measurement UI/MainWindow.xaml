@@ -86,10 +86,23 @@
 
                                     <!-- Set Zero Position -->
                                     <Button Content="Set Zero Position" Width="150" Click="SetZeroPositionButton_Click" Margin="0,5,0,5"/>
+                                    <!-- Current Position 1 -->
+                                    <TextBlock Text="Current Position1:" />
+                                    <TextBox Name="CalibrationMotor1Pos" Width="100" IsReadOnly="True" />
 
-                                    <!-- Current Position -->
-                                    <TextBlock Text="Current Position:" />
-                                    <TextBox Name="CurrentPosition" Width="100" IsReadOnly="True" />
+
+                                    <!-- Current Position 2 -->
+                                    <TextBlock Text="Current Position2:" />
+                                    <TextBox Name="CalibrationMotor2Pos" Width="100" IsReadOnly="True" />
+
+                                    <TextBlock Text="Sensitivity (urad^2/vHz):" />
+                                    <TextBox Name="sensitivityEval" Width="100" IsReadOnly="True" />
+
+                                    <TextBlock Text="Power diff (Ch1):" />
+                                    <TextBox Name="PowerDiffCh1" Width="100" IsReadOnly="True" />
+                                    <TextBlock Text="Power diff (Ch2):" />
+                                    <TextBox Name="PowerDiffCh2" Width="100" IsReadOnly="True" />
+
                                 </StackPanel>
                             </GroupBox>
 
@@ -178,9 +191,10 @@
 
                                         <!-- Delay Stage Program Configuration -->
                                         <TextBlock Text="Delay Stage Program:" Margin="0,10,0,0" />
-                                        <ComboBox Name="DelayStageProgram" Width="100" IsEditable="True" Text="Scan10">
+                                        <ComboBox Name="DelayStageProgram" Width="100" IsEditable="True" Text="Scan1">
                                             <ComboBoxItem Content="Scan05" />
                                             <ComboBoxItem Content="Scan1" />
+                                            <ComboBoxItem Content="Scan5" />
                                             <ComboBoxItem Content="Scan10" />
                                             <ComboBoxItem Content="Scan20" />
                                             <ComboBoxItem Content="Scan30" />
@@ -368,7 +382,8 @@
                                     <lvc:Axis Title="Sample Index"/>
                                 </lvc:CartesianChart.AxisX>
                                 <lvc:CartesianChart.AxisY>
-                                    <lvc:Axis Title="Signal Amplitude (mV)"/>
+                                    <lvc:Axis Title="Signal Amplitude (mV)" MinValue="-250"
+                  MaxValue="250"/>
                                 </lvc:CartesianChart.AxisY>
                             </lvc:CartesianChart>
 

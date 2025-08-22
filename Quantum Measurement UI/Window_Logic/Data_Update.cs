@@ -56,18 +56,19 @@ namespace Quantum_measurement_UI
                     // Update the motor position on the UI thread, motor controller can only be accessed by one thread at a time, so we need to update it on the UI thread
                     Dispatcher.Invoke(() =>
                     {
-                        // Read the current position of the selected motor
-                        int motorNumber = GetSelectedMotor();
 
-                        bool status = motorController.GetCurrentPosition(motorNumber, out int currentPosition);
+                        bool status1 = motorController.GetCurrentPosition(1, out int currentPosition1);
+                        bool status2 = motorController.GetCurrentPosition(2, out int currentPosition2);
 
-                        if (status)
+                        if (status1&&status2)
                         {
-                            CurrentPosition.Text = currentPosition.ToString();
+                            CalibrationMotor1Pos.Text = currentPosition1.ToString();
+                            CalibrationMotor2Pos.Text = currentPosition2.ToString();
                         }
                         else
                         {
-                            CurrentPosition.Text = "Error";
+                            CalibrationMotor1Pos.Text = "Error";
+                            CalibrationMotor2Pos.Text = "Error";
                         }
                     });
 
@@ -199,19 +200,13 @@ namespace Quantum_measurement_UI
                 CurrentSensitivityTextBlock.Text = $"Shot Noise: {noise_μrad2_sqrtHz:F2} μrad²/√Hz";
 
                 // === Optional debug logs ===
-                AppendMessage($"[Debug] Vdet1 = {Vdet1:F3} V, P1 = {P1 * 1e3:F2} mW, N1 = {N1:E2}");
+
                 LogExperimentEvent($"Vdet1 = {Vdet1:F3} V, P1 = {P1 * 1e3:F2} mW, N1 = {N1:E2}");
-                AppendMessage($"[Debug] Vdet2 = {Vdet2:F3} V, P2 = {P2 * 1e3:F2} mW, N2 = {N2:E2}");
                 LogExperimentEvent($"Vdet2 = {Vdet2:F3} V, P2 = {P2 * 1e3:F2} mW, N2 = {N2:E2}");
-                AppendMessage($"[Debug] Sensitivity = {sensitivity:E2} V/photon");
                 LogExperimentEvent($"Sensitivity = {sensitivity:E2} V/photon");
-                AppendMessage($"[Debug] Shot Noise1 = {shotNoise1:E2} V, Shot Noise2 = {shotNoise2:E2} V");
                 LogExperimentEvent($"Shot Noise1 = {shotNoise1:E2} V, Shot Noise2 = {shotNoise2:E2}");
-                AppendMessage($"[Debug] Signal Level = {shotNoiseSignal_V2_sqrtHz:E2} V²/√Hz");
                 LogExperimentEvent($"Signal Level = {shotNoiseSignal_V2_sqrtHz:E2} V²/√Hz");
-                AppendMessage($"[Debug] Conversion Factor = {conversionFactor_V2_per_rad2:E2} V²/rad²");
                 LogExperimentEvent($"Conversion Factor = {conversionFactor_V2_per_rad2:E2} V²/rad²");
-                AppendMessage($"[Debug] Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
                 LogExperimentEvent($"Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
 
                 LogSensitivity($"Vdet1 = {Vdet1:F3} V, P1 = {P1 * 1e3:F2} mW, N1 = {N1:E2}");
@@ -222,6 +217,10 @@ namespace Quantum_measurement_UI
                 LogSensitivity($"Conversion Factor = {conversionFactor_V2_per_rad2:E2} V²/rad²");
                 LogSensitivity($"Shot Noise Result = {noise_μrad2_sqrtHz:F2} μrad²/√Hz");
 
+                Dispatcher.Invoke(() =>
+                {
+                    sensitivityEval.Text =                  $"{noise_μrad2_sqrtHz:F2} μrad²/√Hz";
+                });
 
             }
             catch (Exception ex)
@@ -315,7 +314,7 @@ namespace Quantum_measurement_UI
                         double mean = GetSignalMean(0);
                         CheckForDrops(SignalDrops, mean);
 
-                        if(TimeToBalance) bal3.Update(mean); // if the balance window is open 
+                        if(TimeToBalance)/* bal3.Update(mean); // if the balance window is open */
 
                         if(mean > maxVolts)  maxVolts = mean; 
 

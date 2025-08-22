@@ -49,6 +49,7 @@ namespace Quantum_measurement_UI
                 InitializeExperimentLog();
 
                 // Start the delay stage program
+                
                 startDelayStageProgram();
                 Thread.Sleep(5000); // Wait for 5 seconds to ensure the delay stage program is started
                 await signal;
