@@ -207,74 +207,67 @@ namespace Quantum_measurement_UI
 
         private void startDelayStageProgram()
         {
-            // Connect to controller
-
             try
             {
-                // Get the program name from the UI
-                string programName = "Motion"; // Default value
-                Dispatcher.Invoke(() => {
-                    programName = DelayStageProgram.Text.Trim();
-                    if (string.IsNullOrEmpty(programName))
+                // --- 1) Read program name from UI ---
+                string programName = "Motion";
+                Dispatcher.Invoke(() =>
+                {
+                    var name = DelayStageProgram.Text?.Trim();
+                    if (!string.IsNullOrEmpty(name)) programName = name;
+                    else
                     {
                         AppendMessage("Delay stage program name is empty.");
                         LogExperimentEvent("Delay stage program name is empty.");
                     }
                 });
 
-                // Configure and start the delay stage
+                // --- 2) Prepare controller / info ---
                 esp300Controller.setPositionDisplayResolution(5);
-                String stage_info = esp300Controller.GetDelayStageInfo();
-                AppendMessage($"Delay Stage Info: {stage_info}");
-                LogExperimentEvent($"Delay Stage Info: {stage_info}");
-                GoToTimeZero_Click(sender: null, e: null); // Move to Time 0 position
+                string stageInfo = esp300Controller.GetDelayStageInfo();
+                AppendMessage($"Delay Stage Info: {stageInfo}");
+                LogExperimentEvent($"Delay Stage Info: {stageInfo}");
 
-                // Parse Time Zero position from UI for checking
-                if (!double.TryParse(TimeZeroPositionInput.Text.Trim(),
+                // --- 3) Parse time-zero and move there (no UI thread IO) ---
+                if (!double.TryParse(TimeZeroPositionInput.Text?.Trim(),
                                      NumberStyles.Float,
                                      CultureInfo.InvariantCulture,
                                      out var timeZeroPosition))
                 {
-                    AppendMessage("Invalid Time Zero position input.");
-                    LogExperimentEvent("Invalid Time Zero position input.");
+                    AppendMessage("Invalid Time 0 position input.");
+                    LogExperimentEvent("Invalid Time 0 position input.");
                     return;
                 }
 
-                // Wait until position is at Time Zero before executing
-                const double tolerance = 0.001; // acceptable difference
-                bool atTimeZero = false;
-                while (!atTimeZero)
-                {
-                    double currentPos = esp300Controller.GetCurrentPosition(); // pass axis if needed
-                    atTimeZero = Math.Abs(currentPos - timeZeroPosition) <= tolerance;
+                string axisPrefix = esp300Controller.Axis.ToString(CultureInfo.InvariantCulture);
+                esp300Controller.SendCommand($"{axisPrefix}PA{timeZeroPosition.ToString("G17", CultureInfo.InvariantCulture)}");
+                AppendMessage($"Commanded ESP to move to Time 0 position: {timeZeroPosition:F3} mm.");
+                LogExperimentEvent($"Commanded ESP to move to Time 0 position: {timeZeroPosition:F3} mm.");
 
-                    if (!atTimeZero)
-                        System.Threading.Thread.Sleep(1000);
-                }
+                // Allow brief settle
+                Thread.Sleep(300);
 
-
-                // Execute the specified program
+                // --- 4) Execute program ---
                 esp300Controller.ExecuteProgram(programName);
                 AppendMessage($"Started delay stage program: {programName}");
                 LogExperimentEvent($"Started delay stage program: {programName}");
 
-                String controller_error = esp300Controller.CheckForErrors();
-
-                if (controller_error != "No delay stage errors detected")
+                // TB?/ER? integrated checker you added earlier
+                string controllerError = esp300Controller.CheckForErrors();
+                if (controllerError != "No delay stage errors detected")
                 {
-                    AppendMessage($"Error in delay stage: {controller_error}");
-                    LogExperimentEvent($"Error in delay stage: {controller_error}");
+                    AppendMessage($"Error in delay stage: {controllerError}");
+                    LogExperimentEvent($"Error in delay stage: {controllerError}");
                 }
 
-                // Check initial motion status
+                // --- 5) Initial motion status -> UI ---
                 int motorStatus = esp300Controller.getMotionStatus();
                 if (motorStatus == 1)
                 {
                     AppendMessage("Delay stage is not moving.");
                     LogExperimentEvent("Delay stage is not moving.");
-
-                    // Update UI status indicators
-                    Dispatcher.Invoke(() => {
+                    Dispatcher.Invoke(() =>
+                    {
                         DelayStageStatusText.Text = "Not Moving";
                         DelayStageStatusIndicator.Fill = Brushes.Yellow;
                     });
@@ -283,80 +276,142 @@ namespace Quantum_measurement_UI
                 {
                     AppendMessage("Delay stage is moving.");
                     LogExperimentEvent("Delay stage is moving.");
-
-                    // Update UI status indicators
-                    Dispatcher.Invoke(() => {
+                    Dispatcher.Invoke(() =>
+                    {
                         DelayStageStatusText.Text = "Moving";
                         DelayStageStatusIndicator.Fill = Brushes.Green;
                     });
                 }
 
-                // Create a separate log file for delay stage position in the experiment directory
+                // --- 6) Open log file (append) ---
                 string delayStageLogPath = Path.Combine(
                     resultsBaseDirectory,
                     experimentLogDirectory,
                     "delay_stage_positions.log");
-
-                // Create a StreamWriter for the delay stage position log
-                delayStageLogWriter = new StreamWriter(delayStageLogPath, true);
+                delayStageLogWriter = new StreamWriter(delayStageLogPath, append: true);
                 delayStageLogWriter.WriteLine("Timestamp,Position");
 
-                // Create a cancellation token source for the delay stage position monitoring
+                // --- 7) Start lightweight position sampler/monitor ---
+                delayStagePositionCancellationTokenSource?.Cancel();
                 delayStagePositionCancellationTokenSource = new CancellationTokenSource();
+                var token = delayStagePositionCancellationTokenSource.Token;
 
-                // Start a task to continuously monitor the delay stage position
+                const int pollMs = 150;                   // device poll cadence
+                const int uiErrRateLimitSec = 10;         // UI spam limiter
+                const int recoverAfterErrors = 20;        // ~3s of failures at 150ms cadence
+
+
+
+
                 Task.Run(async () =>
                 {
+                    int consecutiveErrors = 0;
+                    DateTime lastUiError = DateTime.MinValue;
                     try
                     {
-                        // Get the cancellation token
-                        CancellationToken token = delayStagePositionCancellationTokenSource.Token;
-
                         while (!token.IsCancellationRequested && isExperimentRunning)
                         {
-                            // Get current position
-                            double currentPosition = esp300Controller.GetCurrentPosition();
+                            string ts = DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+                            bool ok = false;
+                            string errMsg = null;
 
-                            // Update the class field (no lock needed if only updated here)
-                            delayStageCurrentPosition = currentPosition;
 
-                            // Update the position in the UI
-                            Dispatcher.Invoke(() => {
-                                DelayStagePositionText.Text = currentPosition.ToString("F5");
-                            });
+                            double pos = double.NaN;
 
-                            // Get current timestamp
-                            string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                            try
+                            {
+                                // Read once per loop; cache for everyone else
+                                pos = esp300Controller.GetCurrentPosition();
+                                System.Threading.Volatile.Write(ref currentESPPosition, pos);
+                                delayStageCurrentPosition = pos;
+                                currentESPPosition = pos; // shared cached position
+                                ok = true;
+                                consecutiveErrors = 0;
 
-                            // Log to the delay stage position log file
+                                // UI update (position & status)
+                                Dispatcher.Invoke(() =>
+                                {
+                                    DelayStagePositionText.Text = pos.ToString("F5", CultureInfo.InvariantCulture);
+                                    if (DelayStageStatusText.Text != "Moving" && DelayStageStatusText.Text != "Running")
+                                    {
+                                        DelayStageStatusText.Text = "Running";
+                                        DelayStageStatusIndicator.Fill = Brushes.Green;
+                                    }
+                                });
+                            }
+                            catch (TimeoutException tex)
+                            {
+                                errMsg = $"Timeout: {tex.Message}";
+                                consecutiveErrors++;
+                            }
+                            catch (IOException ioex)
+                            {
+                                errMsg = $"IO error: {ioex.Message}";
+                                consecutiveErrors++;
+                            }
+                            catch (Exception ex)
+                            {
+                                errMsg = $"Error: {ex.Message}";
+                                consecutiveErrors++;
+                            }
 
+                            // Log every tick, even on failure
                             if (delayStageLogWriter != null)
                             {
-                                delayStageLogWriter.WriteLine($"{timestamp},{currentPosition}");
+                                if (ok)
+                                    delayStageLogWriter.WriteLine($"{ts},{pos.ToString("G17", CultureInfo.InvariantCulture)}");
+                                else
+                                    delayStageLogWriter.WriteLine($"{ts},NaN   # {errMsg}");
                                 delayStageLogWriter.Flush();
                             }
 
-                            // Check for errors periodically (but not too often)
-                            if (DateTime.Now.Second % 10 == 0) // Only check every ~10 seconds
+                            // Rate‑limit UI error messages
+                            if (!ok)
                             {
-                                controller_error = esp300Controller.CheckForErrors();
-                                if (controller_error != "No delay stage errors detected")
+                                if ((DateTime.Now - lastUiError).TotalSeconds >= uiErrRateLimitSec)
                                 {
+                                    lastUiError = DateTime.Now;
                                     Dispatcher.Invoke(() =>
                                     {
-                                        AppendMessage($"Error in delay stage: {controller_error}");
-                                        LogExperimentEvent($"Error in delay stage: {controller_error}");
+                                        AppendMessage($"Delay stage read issue (x{consecutiveErrors}): {errMsg}");
+                                        LogExperimentEvent($"Delay stage read issue: {errMsg}");
+                                        DelayStageStatusText.Text = "Degraded (reading...)";
+                                        DelayStageStatusIndicator.Fill = Brushes.Yellow;
                                     });
+                                }
+
+                                // Soft recovery after many consecutive failures
+                                if (consecutiveErrors >= recoverAfterErrors)
+                                {
+                                    try
+                                    {
+                                        var ce = esp300Controller.CheckForErrors();
+                                        if (ce != "No delay stage errors detected")
+                                        {
+                                            Dispatcher.Invoke(() =>
+                                            {
+                                                AppendMessage($"Delay stage reports error: {ce}");
+                                                LogExperimentEvent($"Delay stage reports error: {ce}");
+                                            });
+                                        }
+
+                                        try { esp300Controller.Disconnect(); } catch { }
+                                        try { esp300Controller.Connect(); } catch { }
+                                        await Task.Delay(300, token);
+                                    }
+                                    catch { /* swallow */ }
+                                    finally
+                                    {
+                                        consecutiveErrors = 0;
+                                    }
                                 }
                             }
 
-                            // Wait for 24 ms before next reading
-                            await Task.Delay(24, token);
+                            await Task.Delay(pollMs, token);
                         }
                     }
                     catch (OperationCanceledException)
                     {
-                        // This is expected when cancellation is requested
                         Dispatcher.Invoke(() =>
                         {
                             AppendMessage("Delay stage position monitoring stopped.");
@@ -365,30 +420,28 @@ namespace Quantum_measurement_UI
                     }
                     catch (Exception ex)
                     {
-                        // Handle other exceptions and log them
                         Dispatcher.Invoke(() =>
                         {
-                            AppendMessage($"Error monitoring delay stage: {ex.Message}");
-                            LogExperimentEvent($"Error monitoring delay stage: {ex.Message}");
+                            AppendMessage($"Delay stage monitoring fatal error: {ex.Message}");
+                            LogExperimentEvent($"Delay stage monitoring fatal error: {ex.Message}");
+                            DelayStageStatusText.Text = "Error";
+                            DelayStageStatusIndicator.Fill = Brushes.Red;
                         });
                     }
                     finally
                     {
-                        // Ensure the log file is closed when the experiment ends
-                        if (delayStageLogWriter != null)
+                        // Do NOT close writer here; stopDelayStageProgram() owns lifecycle
+                        Dispatcher.Invoke(() =>
                         {
-                            Dispatcher.Invoke(() =>
-                            {
-                                AppendMessage("Delay stage position logging completed.");
-                                LogExperimentEvent("Delay stage position logging completed.");
-                            });
-                        }
+                            AppendMessage("Delay stage position monitoring task exited.");
+                            LogExperimentEvent("Delay stage position monitoring task exited.");
+                        });
                     }
-                });
+                }, token);
 
-                // Start the UI position display timer
-                Dispatcher.Invoke(() => {
-                    // Update the UI status
+                // --- 8) Final UI state ---
+                Dispatcher.Invoke(() =>
+                {
                     DelayStageStatusText.Text = "Running";
                     DelayStageStatusIndicator.Fill = Brushes.Green;
                 });
@@ -400,14 +453,12 @@ namespace Quantum_measurement_UI
             {
                 AppendMessage($"Error initializing delay stage: {ex.Message}");
                 LogExperimentEvent($"Error initializing delay stage: {ex.Message}");
-
-                // Update UI in case of error
-                Dispatcher.Invoke(() => {
+                Dispatcher.Invoke(() =>
+                {
                     DelayStageStatusText.Text = "Error";
                     DelayStageStatusIndicator.Fill = Brushes.Red;
                 });
             }
-
         }
 
 

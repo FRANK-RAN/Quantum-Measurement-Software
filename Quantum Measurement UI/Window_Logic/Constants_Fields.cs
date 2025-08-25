@@ -133,10 +133,27 @@ namespace Quantum_measurement_UI
         private int selectedRow = 0;
         private int selectedColumn = 0;
 
+        // Time counter for the auto scan routine
+       
+        private System.Diagnostics.Stopwatch autoScanStopwatch;
+        private DispatcherTimer autoScanUiTimer;
+
+        private int autoScanTotalSteps;      // total (forward + backward) steps across all loops
+        private int autoScanCompletedSteps;  // how many steps we’ve finished so far
+        private int autoScanStepDwellSec;    // dwell per step (sec)
+
+
         // For Autobalance Charts
         public SeriesCollection? SignalSeriesCollectionAutobalance { get; set; }  // For Signal charts in Autobalance
         public SeriesCollection? MotorPositionSeriesCollection { get; set; }  // For Motor Positions charts in Autobalance
         public SeriesCollection? MetricSeriesCollection { get; set; }        // For Flatness Metric charts in Autobalance
+
+        // Shared cached ESP position for the whole UI (written by the logger/sampler)
+        private double currentESPPosition = double.NaN;
+
+        // Cap for ESP position chart points (read by UpdateESPPosition, etc.)
+        private const int EspChartCapacity = 300;
+
 
         // Motor controller and corresponding fields for functionalities
         private MotorController motorController;   // MotorController instance for controlling the motor

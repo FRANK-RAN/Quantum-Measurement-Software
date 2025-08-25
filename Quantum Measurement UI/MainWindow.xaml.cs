@@ -67,5 +67,9 @@ namespace Quantum_measurement_UI
 
         #endregion
 
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
     }
 }

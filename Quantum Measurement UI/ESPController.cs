@@ -17,7 +17,8 @@ namespace Quantum_measurement_UI
         public double Deceleration { get; set; } = 5.0;
 
         public double currentPosition { get; set; } = 0.0;
-
+        // Connection state
+        public bool IsConnected { get; private set; }
 
 
         // VISA communication objects
@@ -39,15 +40,20 @@ namespace Quantum_measurement_UI
                 _visaSession = _resourceManager.Open(visaAddress);
                 _session = (IMessageBasedSession)_visaSession;
 
-                _session.Clear(); // clear buffer
-                formattedIO = _session.FormattedIO;
+                // --- Important settings for ESP300 ---
+                _session.Clear();                        // flush any junk
+                _session.TimeoutMilliseconds = 5000;     // allow long replies
+                _session.TerminationCharacterEnabled = true;
+                _session.TerminationCharacter = 0x0D;    // carriage return '\r'
 
-                
+                formattedIO = _session.FormattedIO;
+                IsConnected = true;
                 return true;
             }
             catch (Exception ex)
             {
-                
+                Console.WriteLine($"ESP300 GPIB connect failed: {ex.Message}");
+                IsConnected = false;
                 return false;
             }
         }
@@ -142,33 +148,78 @@ namespace Quantum_measurement_UI
         }
 
         /// <summary>
-        /// Sends a command to the controller
+        /// Sends a command (no reply expected)
         /// </summary>
-        /// <param name="command">Command to send</param>
         public void SendCommand(string command)
         {
-            formattedIO?.WriteLine(command);
+            if (formattedIO == null)
+                throw new InvalidOperationException("VISA session not initialized");
+
+            formattedIO.WriteLine(command);
         }
 
+
         /// <summary>
-        /// Checks for any errors returned by the controller
+        /// Sends a query (expects reply)
         /// </summary>
-        public String CheckForErrors()
+        public string Query(string command)
         {
-            // Send the Tell Buffer command to check for errors
-            SendCommand("TB?");
-            string errorMessage = formattedIO.ReadLine();
+            if (formattedIO == null)
+                throw new InvalidOperationException("VISA session not initialized");
 
-            // Error message format: "error_code, timestamp, error_description"
-            // If there are no errors, it returns "0, timestamp, NO ERROR DETECTED"
-            if (!errorMessage.StartsWith("0,"))
+            formattedIO.WriteLine(command);
+            return formattedIO.ReadLine();
+        }
+        /// <summary>
+        /// Checks for any errors using TB?. If errors exist, drains ER? until no errors remain,
+        /// clears status registers (CL), and returns a multi-line report of everything found.
+        /// If no errors, returns "No delay stage errors detected".
+        /// </summary>
+        public string CheckForErrors()
+        {
+            if (_session == null || formattedIO == null)
+                return "ESP300 not connected.";
+
+            try
             {
-                
-                return errorMessage;
+                // 1) Check for errors via TB?
+                formattedIO.WriteLine("TB?");
+                string tb = formattedIO.ReadLine()?.Trim();
+
+                if (string.IsNullOrWhiteSpace(tb))
+                    return "TB? returned empty response";
+
+                // When no error, TB? typically returns: "0, <timestamp>, NO ERROR DETECTED"
+                if (tb.StartsWith("0,"))
+                    return "No delay stage errors detected";
+
+                // 2) Errors present — drain ER? queue until it returns "0, ..."
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(tb); // include the TB? line for context
+
+                for (int i = 0; i < 64; i++) // guard against infinite loop
+                {
+                    formattedIO.WriteLine("ER?");
+                    string er = formattedIO.ReadLine()?.Trim();
+
+                    if (string.IsNullOrWhiteSpace(er))
+                        break;
+
+                    sb.AppendLine(er);
+
+                    if (er.StartsWith("0")) // "0, ..." => no more errors
+                        break;
+                }
+
+                // 3) Clear status registers (optional but recommended after draining)
+                try { formattedIO.WriteLine("CL"); } catch { /* ignore */ }
+
+                return sb.ToString().TrimEnd();
             }
-
-            return "No delay stage errors detected";
-
+            catch (Exception ex)
+            {
+                return $"Error while checking/clearing ESP300 errors: {ex.Message}";
+            }
         }
 
         public void setPositionDisplayResolution(double resolution)
@@ -176,6 +227,39 @@ namespace Quantum_measurement_UI
             // Set the display resolution for the axis
             string axisPrefix = Axis.ToString();
             SendCommand($"{axisPrefix}FP{resolution}");
+        }
+
+        /// <summary>
+        /// Safely disconnects from the ESP300 controller.
+        /// Optionally attempts to abort any running program and stop motion before closing the session.
+        /// </summary>
+        /// <param name="abortProgram">Send AB to abort any running program before disconnecting.</param>
+        /// <param name="stopMotion">Send ST to stop motion before disconnecting.</param>
+        public void Disconnect(bool abortProgram = true, bool stopMotion = true)
+        {
+            // Best-effort commands; swallow errors if the link is already gone.
+            try
+            {
+                if (abortProgram && IsConnected) formattedIO.WriteLine("AB"); // Abort program (ESP300)
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                if (stopMotion && IsConnected) formattedIO.WriteLine("ST"); // Stop motion
+            }
+            catch { /* ignore */ }
+
+            // Try to clear I/O buffers (non-fatal if it fails)
+            try { _session?.Clear(); } catch { /* ignore */ }
+
+            // Dispose VISA objects in reverse order of creation
+            try { formattedIO = null; } catch { /* ignore */ }
+            try { _session?.Dispose(); } catch { /* ignore */ } finally { _session = null; }
+            try { _visaSession?.Dispose(); } catch { /* ignore */ } finally { _visaSession = null; }
+            try { _resourceManager?.Dispose(); } catch { /* ignore */ } finally { _resourceManager = null; }
+
+            IsConnected = false;
         }
 
 

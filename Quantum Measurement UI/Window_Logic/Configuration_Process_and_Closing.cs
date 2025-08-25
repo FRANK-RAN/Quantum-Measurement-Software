@@ -137,46 +137,141 @@ namespace Quantum_measurement_UI
         }
 
 
+        private CancellationTokenSource scanCts;
+
         private async void RunAutoCycle_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Program name: "MotorScan";
-
                 string axisPrefix = esp300Controller.Axis.ToString();
 
-                // Create and store the program inside ESP
-                await SendESPCommandAsync($"10xx ");
-                await SendESPCommandAsync($"10ep ");
-                await SendESPCommandAsync($"1MO");
-
-                await SendESPCommandAsync("dl loop");
-
-                double startPoint = double.Parse(StartPointInput.Text);  // From your UI
-                double endPoint = double.Parse(EndPointInput.Text);
+                // Inputs
+                double center = double.Parse(CenterPointInput.Text);
+                double span = double.Parse(SpanInput.Text);
+                double stepSize = double.Parse(StepSizeInput.Text);
+                int dwellSec = int.Parse(DwellTimeInput.Text);
                 int loopCount = int.Parse(LoopCountInput.Text);
-                int dwellTime = int.Parse(DwellTimeInput.Text);  // milliseconds
 
-                await SendESPCommandAsync($"{axisPrefix}PA{endPoint:F3};1WS{dwellTime}");
-                await SendESPCommandAsync($"{axisPrefix}PA{startPoint:F3};1WS{dwellTime}");
+                int steps = (int)Math.Round(span / stepSize);
+                double start = center - span / 2.0;
 
-                await SendESPCommandAsync($"jl loop,{loopCount}");
+                // Total steps includes forward + backward in each loop
+                int totalSteps = Math.Max(0, steps * 2 * loopCount);
 
-                await SendESPCommandAsync("qp");
+                scanCts = new CancellationTokenSource();
+                var token = scanCts.Token;
 
-                AppendMessage("Motor cycle program stored successfully!");
-                LogExperimentEvent("Motor cycle program stored successfully.");
+                AppendMessage($"Starting step scan: center={center:F3}, span={span:F3}, step={stepSize:F3}, dwell={dwellSec}s, loops={loopCount}");
+                LogExperimentEvent("Step scan started.");
 
-                // Now simply EXECUTE the stored program
-                await SendESPCommandAsync($"10EX ");
+                // Start time counter
+                StartAutoScanTimer(totalSteps, dwellSec);
 
-                AppendMessage("Motor cycle started (non-blocking).");
-                LogExperimentEvent("Motor cycle started (non-blocking).");
+                // Move to start point once
+                await SendESPCommandAsync($"{axisPrefix}PA{start:F3}");
+                await Task.Delay(2000, token);  // settle
+
+                // Loops
+                for (int loop = 1; loop <= loopCount; loop++)
+                {
+                    // Forward sweep
+                    for (int i = 0; i < steps; i++)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        await SendESPCommandAsync($"{axisPrefix}PR{stepSize:F3}");
+                        LogExperimentEvent($"Loop {loop} forward step {i + 1}/{steps}, move {stepSize:F3} mm");
+
+                        await Task.Delay(TimeSpan.FromSeconds(dwellSec), token);
+
+                        // one step completed
+                        autoScanCompletedSteps++;
+                    }
+
+                    // Backward sweep
+                    for (int i = 0; i < steps; i++)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        await SendESPCommandAsync($"{axisPrefix}PR{-stepSize:F3}");
+                        LogExperimentEvent($"Loop {loop} backward step {i + 1}/{steps}, move {-stepSize:F3} mm");
+
+                        await Task.Delay(TimeSpan.FromSeconds(dwellSec), token);
+
+                        // one step completed
+                        autoScanCompletedSteps++;
+                    }
+                }
+
+                // Return to center
+                await SendESPCommandAsync($"{axisPrefix}PA{center:F3}");
+                AppendMessage("Scan finished and returned to center.");
+                LogExperimentEvent("Scan finished.");
+            }
+            catch (TaskCanceledException)
+            {
+                AppendMessage("Step scan terminated by user.");
+                LogExperimentEvent("Step scan terminated.");
             }
             catch (Exception ex)
             {
-                AppendMessage($"Error setting up MotorScan: {ex.Message}");
+                AppendMessage($"Error during step scan: {ex.Message}");
             }
+            finally
+            {
+                StopAutoScanTimer();
+            }
+        }
+        private void StartAutoScanTimer(int totalSteps, int dwellSec)
+        {
+            autoScanTotalSteps = Math.Max(0, totalSteps);
+            autoScanCompletedSteps = 0;
+            autoScanStepDwellSec = Math.Max(0, dwellSec);
+
+            autoScanStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            if (autoScanUiTimer == null)
+            {
+                autoScanUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+                autoScanUiTimer.Tick += AutoScanUiTimer_Tick;
+            }
+            autoScanUiTimer.Start();
+        }
+
+        private void StopAutoScanTimer()
+        {
+            try { autoScanUiTimer?.Stop(); } catch { /* ignore */ }
+            try { autoScanStopwatch?.Stop(); } catch { /* ignore */ }
+
+            // final UI refresh
+            AutoScanUiTimer_Tick(null, EventArgs.Empty);
+        }
+
+        private void AutoScanUiTimer_Tick(object sender, EventArgs e)
+        {
+            var elapsed = autoScanStopwatch?.Elapsed ?? TimeSpan.Zero;
+
+            // ETA = remainingSteps * dwellSec (simple, robust; ignores small move overhead)
+            var remainingSteps = Math.Max(0, autoScanTotalSteps - autoScanCompletedSteps);
+            var remaining = TimeSpan.FromSeconds(remainingSteps * autoScanStepDwellSec);
+
+            // Update UI if those elements exist
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (AutoScanElapsedText != null)
+                        AutoScanElapsedText.Text = elapsed.ToString(@"hh\:mm\:ss");
+
+                    if (AutoScanRemainingText != null)
+                        AutoScanRemainingText.Text = remaining.ToString(@"hh\:mm\:ss");
+                });
+            }
+            catch { /* ignore cross-thread races during shutdown */ }
+        }
+
+
+        private void StopAutoCycle_Click(object sender, RoutedEventArgs e)
+        {
+            scanCts?.Cancel();
         }
 
 
@@ -205,36 +300,35 @@ namespace Quantum_measurement_UI
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    Dispatcher.Invoke(() =>
+                    // Read the last sampled position; never talk to hardware here
+                    double pos = System.Threading.Volatile.Read(ref currentESPPosition);
+
+                    if (!double.IsNaN(pos))
                     {
-                        try
+                        await Dispatcher.InvokeAsync(() =>
                         {
-                            double position = esp300Controller.GetCurrentPosition();
-                            ESPPositionValues.Add(position);
+                            ESPPositionValues.Add(pos);
 
-                            if (ESPPositionValues.Count > 100) // Limit to last 100 points
-                            {
+                            // keep chart light
+                            if (ESPPositionValues.Count > EspChartCapacity)
                                 ESPPositionValues.RemoveAt(0);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            AppendMessage($"Error reading ESP position: {ex.Message}");
-                        }
-                    });
+                        });
+                    }
 
-                    await Task.Delay(25, cancellationToken); // Update every 1 second
+                    // UI refresh cadence (no need to be faster than ~200–300 ms)
+                    await Task.Delay(250, cancellationToken);
                 }
             }
             catch (TaskCanceledException)
             {
-                // Task was cancelled (normal)
+                // normal
             }
             catch (Exception ex)
             {
                 AppendMessage($"Exception in UpdateESPPosition: {ex.Message}");
             }
         }
+
 
 
         private CancellationTokenSource espPositionCancellationTokenSource;
@@ -471,7 +565,7 @@ namespace Quantum_measurement_UI
                     if (i == 0 && window.Dropped(mean)) // if the mean of channel 0 is below that 
                     {
                         WaitTicks = 80;
-                        AppendMessage("Stream Paused");
+                        AppendMessage("NIDAQ Stream Paused");
                         return;
                     }
                     else if (i == 0)
@@ -999,35 +1093,23 @@ namespace Quantum_measurement_UI
         {
             try
             {
-                int samplesPerChannel = daqBuffer.Length / 1; // 🔥 Only 1 channel now
+                int samplesPerChannel = daqBuffer.Length; // ai5 only
 
                 // Accumulate AI5 samples
                 for (int i = 0; i < samplesPerChannel; i++)
-                {
-                    double value = daqBuffer[i]; // ai5 only
-                    ai5AmplitudeBuffer.Add(value);
-                }
+                    ai5AmplitudeBuffer.Add(daqBuffer[i]);
 
-                if (ai5AmplitudeBuffer.Count >= 2000) // Adjust this if you collect 100 ms worth of data
+                if (ai5AmplitudeBuffer.Count >= 2000) // tune as needed
                 {
-                    double meanAI5 = ai5AmplitudeBuffer.Average(); // 🔥 Average, not (max-min)/2
+                    double meanAI5 = ai5AmplitudeBuffer.Average();
 
-                    double position = 0;
-                    if (esp300Controller != null)
-                    {
-                        position = esp300Controller.GetCurrentPosition();
-                    }
-                    else
-                    {
-                        AppendMessage("Warning: ESP controller not connected.");
-                    }
+                    // 🔽 use cached position, do NOT query device here
+                    double position = System.Threading.Volatile.Read(ref currentESPPosition);
 
                     if (!double.IsNaN(position))
                     {
                         MotorVsAI5Values.Add(new ObservablePoint(position, meanAI5));
-
-                        if (MotorVsAI5Values.Count > 100)
-                            MotorVsAI5Values.RemoveAt(0);
+                        if (MotorVsAI5Values.Count > 100) MotorVsAI5Values.RemoveAt(0);
                     }
 
                     ai5AmplitudeBuffer.Clear();

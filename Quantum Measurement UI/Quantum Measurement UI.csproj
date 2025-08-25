@@ -25,6 +25,7 @@
     <PackageReference Include="OxyPlot.Core" Version="2.2.0" />
     <PackageReference Include="OxyPlot.SkiaSharp" Version="2.2.0" />
     <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
+    <PackageReference Include="System.IO.Ports" Version="9.0.8" />
   </ItemGroup>
 
   <ItemGroup>
@@ -54,10 +55,6 @@
   <ItemGroup>
     <Resource Include="Images\Rice-EQUAL-Lab-Logo.png" />
     <Resource Include="Images\rice-university-logo.jpg" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Controllers\" />
   </ItemGroup>
 
 </Project>

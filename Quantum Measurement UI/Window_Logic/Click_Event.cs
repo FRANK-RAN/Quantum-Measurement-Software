@@ -121,6 +121,8 @@ namespace Quantum_measurement_UI
             }
         }
 
+
+
         private void MovePlus10_Click(object sender, RoutedEventArgs e)
         {
             motorController.MovePlus10(esp300Controller.Axis);

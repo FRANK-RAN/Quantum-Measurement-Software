@@ -191,7 +191,7 @@
 
                                         <!-- Delay Stage Program Configuration -->
                                         <TextBlock Text="Delay Stage Program:" Margin="0,10,0,0" />
-                                        <ComboBox Name="DelayStageProgram" Width="100" IsEditable="True" Text="Scan1">
+                                        <ComboBox Name="DelayStageProgram" Width="100" IsEditable="True" Text="Stay">
                                             <ComboBoxItem Content="Scan05" />
                                             <ComboBoxItem Content="Scan1" />
                                             <ComboBoxItem Content="Scan5" />
@@ -247,7 +247,7 @@
              VerticalAlignment="Center"
              Text="25.28"
              KeyDown="TimeZeroPositionInput_KeyDown"
-             Margin="0,0,0,8"/>
+             Margin="0,0,0,8" TextChanged="TextBox_TextChanged"/>
 
                                     <Button Content="Go to Time 0"
             Width="130"
@@ -569,20 +569,24 @@
                             <GroupBox Header="Auto ESP Cycle Program">
                                 <StackPanel Margin="10">
 
-                                    <TextBlock Text="Start Point (mm)" Margin="0,5,0,0"/>
-                                    <TextBox x:Name="StartPointInput" Width="100"/>
+                                    <TextBlock Text="Center Point (mm)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="CenterPointInput" Width="100" Text="24.4"/>
 
-                                    <TextBlock Text="End Point (mm)" Margin="0,5,0,0"/>
-                                    <TextBox x:Name="EndPointInput" Width="100"/>
+                                    <TextBlock Text="Span (mm)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="SpanInput" Width="100" Text="5"/>
 
-                                    <TextBlock Text="Number of Loops" Margin="0,5,0,0"/>
-                                    <TextBox x:Name="LoopCountInput" Width="100"/>
+                                    <TextBlock Text="Step Size (mm)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="StepSizeInput" Width="100" Text="0.001"/>
+                                    
+                                    <TextBlock Text="Loop Count" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="LoopCountInput" Width="100" Text="10"/>
 
-                                    <TextBlock Text="Dwell Time (ms)" Margin="0,5,0,0"/>
-                                    <TextBox x:Name="DwellTimeInput" Width="100"/>
+                                    <TextBlock Text="Dwell Time (s)" Margin="0,5,0,0"/>
+                                    <TextBox x:Name="DwellTimeInput" Width="100" Text="60"/>
 
-                                    <Button Content="Run Auto Cycle" Width="150" Margin="0,10,0,0" Click="RunAutoCycle_Click"/>
-
+                                    <Button Content="Run stepwise Cycle" Width="150" Margin="0,10,0,0" Click="RunAutoCycle_Click"/>
+                                    <Button Content="Abort Cycle" Width="150" Margin="0,10,0,0" Click="StopAutoCycle_Click"/>
+                                    
 
                                 </StackPanel>
                             </GroupBox>
@@ -593,31 +597,44 @@
                         <StackPanel Grid.Column="1" Orientation="Vertical">
 
                             <lvc:CartesianChart x:Name="ESPPositionChart"
-                                Height="500" Margin="0"
-                                LegendLocation="Right">
+                        Height="500" Margin="0"
+                        LegendLocation="Right">
                                 <lvc:CartesianChart.Series>
                                     <lvc:LineSeries Title="ESP Position"
-                                    PointGeometrySize="5"
-                                    StrokeThickness="2"
-                                    Fill="Transparent"/>
+                            PointGeometrySize="5"
+                            StrokeThickness="2"
+                            Fill="Transparent"/>
                                 </lvc:CartesianChart.Series>
                             </lvc:CartesianChart>
 
+                            <!-- Controls row -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
                                 <Button Content="Start ESP Update" Width="150" Height="30" Margin="5" Click="StartESPUpdate_Click"/>
-                                <Button Content="Stop ESP Update" Width="150" Height="30" Margin="5" Click="StopESPUpdate_Click"/>
-                                <Button x:Name="RunStoredProgramButton" 
-Content="Run Program 10" 
-Width="150" Height="30" Margin="5"
-Click="RunStoredProgramButton_Click" />
-                                <Button x:Name="RunStoredProgram1Button"
-        Content="Run Program 1"
-        Width="150" Height="30" Margin="5"
-        Click="RunStoredProgram1Button_Click" />
+                                <Button Content="Stop ESP Update"  Width="150" Height="30" Margin="5" Click="StopESPUpdate_Click"/>
 
+                                <Button x:Name="RunStoredProgramButton"
+                Content="Run Program 10"
+                Width="150" Height="30" Margin="5"
+                Click="RunStoredProgramButton_Click"/>
+                                <Button x:Name="RunStoredProgram1Button"
+                Content="Run Program 1"
+                Width="150" Height="30" Margin="5"
+                Click="RunStoredProgram1Button_Click"/>
                             </StackPanel>
 
+                            <!-- Time counter row in a border -->
+                            <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="6" Margin="0,8,0,0">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                    <TextBlock Text="Elapsed: " FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock x:Name="AutoScanElapsedText" Text="00:00:00" Width="80" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                                    <TextBlock Text="Remaining: " FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock x:Name="AutoScanRemainingText" Text="00:00:00" Width="80" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
+
+
 
                     </Grid>
                 </ScrollViewer>
