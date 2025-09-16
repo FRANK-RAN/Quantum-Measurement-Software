@@ -147,6 +147,47 @@ namespace Quantum_measurement_UI
             Thread.Sleep(20000);
         }
 
+
+        /// <summary>
+        /// Clears all errors from the ESP300 by draining the error queue (ER?) until "0"
+        /// and then issuing CL to clear status registers. Returns a multi-line report.
+        /// </summary>
+        public string ClearAllErrors()
+        {
+            if (_session == null || formattedIO == null)
+                return "ESP300 not connected.";
+
+            var sb = new System.Text.StringBuilder();
+
+            try
+            {
+                // Drain error queue
+                for (int i = 0; i < 64; i++) // ESP300 error queue depth is limited
+                {
+                    formattedIO.WriteLine("ER?");
+                    var resp = formattedIO.ReadLine()?.Trim();
+
+                    if (string.IsNullOrWhiteSpace(resp))
+                        break;
+
+                    sb.AppendLine(resp);
+
+                    if (resp.StartsWith("0")) // "0, ..." => no more errors
+                        break;
+                }
+
+                // Clear status registers
+                formattedIO.WriteLine("CL");
+            }
+            catch (Exception ex)
+            {
+                return $"ClearAllErrors failed: {ex.Message}";
+            }
+
+            return sb.Length > 0 ? sb.ToString().TrimEnd() : "No errors in queue.";
+        }
+
+
         /// <summary>
         /// Sends a command (no reply expected)
         /// </summary>
@@ -182,45 +223,32 @@ namespace Quantum_measurement_UI
 
             try
             {
-                // 1) Check for errors via TB?
                 formattedIO.WriteLine("TB?");
                 string tb = formattedIO.ReadLine()?.Trim();
 
                 if (string.IsNullOrWhiteSpace(tb))
                     return "TB? returned empty response";
 
-                // When no error, TB? typically returns: "0, <timestamp>, NO ERROR DETECTED"
                 if (tb.StartsWith("0,"))
                     return "No delay stage errors detected";
 
-                // 2) Errors present — drain ER? queue until it returns "0, ..."
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine(tb); // include the TB? line for context
+                // drain ER? queue once
+                formattedIO.WriteLine("ER?");
+                string er = formattedIO.ReadLine()?.Trim();
 
-                for (int i = 0; i < 64; i++) // guard against infinite loop
-                {
-                    formattedIO.WriteLine("ER?");
-                    string er = formattedIO.ReadLine()?.Trim();
-
-                    if (string.IsNullOrWhiteSpace(er))
-                        break;
-
-                    sb.AppendLine(er);
-
-                    if (er.StartsWith("0")) // "0, ..." => no more errors
-                        break;
-                }
-
-                // 3) Clear status registers (optional but recommended after draining)
-                try { formattedIO.WriteLine("CL"); } catch { /* ignore */ }
-
-                return sb.ToString().TrimEnd();
+                return string.IsNullOrWhiteSpace(er) ? tb : $"{tb}\n{er}";
+            }
+            catch (Ivi.Visa.IOTimeoutException)
+            {
+                return "Timeout while checking ESP300 errors.";
             }
             catch (Exception ex)
             {
-                return $"Error while checking/clearing ESP300 errors: {ex.Message}";
+                return $"CheckForErrors failed: {ex.Message}";
             }
         }
+
+
 
         public void setPositionDisplayResolution(double resolution)
         {
@@ -337,7 +365,7 @@ namespace Quantum_measurement_UI
                     {
                         double currentPosition = controller.GetCurrentPosition();
                         Console.WriteLine($"Move to position: {currentPosition}");
-                        Thread.Sleep(24); // wait for 1 second
+                        Thread.Sleep(1000); // wait for 1 second
                         controller.CheckForErrors();
                     }
                 }

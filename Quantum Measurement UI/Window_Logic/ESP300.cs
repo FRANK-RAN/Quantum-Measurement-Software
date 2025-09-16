@@ -238,11 +238,19 @@ namespace Quantum_measurement_UI
                     LogExperimentEvent("Invalid Time 0 position input.");
                     return;
                 }
+                // Allow brief settle
+                Thread.Sleep(100);
 
                 string axisPrefix = esp300Controller.Axis.ToString(CultureInfo.InvariantCulture);
                 esp300Controller.SendCommand($"{axisPrefix}PA{timeZeroPosition.ToString("G17", CultureInfo.InvariantCulture)}");
                 AppendMessage($"Commanded ESP to move to Time 0 position: {timeZeroPosition:F3} mm.");
                 LogExperimentEvent($"Commanded ESP to move to Time 0 position: {timeZeroPosition:F3} mm.");
+                // Allow brief settle
+                Thread.Sleep(100);
+                string cleared = esp300Controller.ClearAllErrors();
+                AppendMessage($"Cleared ESP300 errors:\n{cleared}");
+                LogExperimentEvent($"Cleared ESP300 errors:\n{cleared}");
+
 
                 // Allow brief settle
                 Thread.Sleep(300);
@@ -252,9 +260,17 @@ namespace Quantum_measurement_UI
                 AppendMessage($"Started delay stage program: {programName}");
                 LogExperimentEvent($"Started delay stage program: {programName}");
 
+                // Allow brief settle
+                Thread.Sleep(500);
+
                 // TB?/ER? integrated checker you added earlier
                 string controllerError = esp300Controller.CheckForErrors();
-                if (controllerError != "No delay stage errors detected")
+                if (controllerError.Contains("Timeout"))
+                {
+                    AppendMessage("Delay stage busy at startup, skipping initial error check.");
+                    LogExperimentEvent("Delay stage busy at startup, skipping initial error check.");
+                }
+                else if (controllerError != "No delay stage errors detected")
                 {
                     AppendMessage($"Error in delay stage: {controllerError}");
                     LogExperimentEvent($"Error in delay stage: {controllerError}");

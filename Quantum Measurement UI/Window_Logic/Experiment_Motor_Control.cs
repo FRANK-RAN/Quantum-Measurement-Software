@@ -51,7 +51,7 @@ namespace Quantum_measurement_UI
                 // Start the delay stage program
                 
                 startDelayStageProgram();
-                Thread.Sleep(5000); // Wait for 5 seconds to ensure the delay stage program is started
+                Thread.Sleep(500); // Wait for 0.5 seconds to ensure the delay stage program is started
                 await signal;
                 window = new Mov_Avg(20);
 
@@ -101,6 +101,7 @@ namespace Quantum_measurement_UI
                 autobalancer?.Stop();                            // Stop autobalancer
                 espPositionCancellationTokenSource?.Cancel();    // Stop ESP position updates
                 autoReadCts?.Cancel();                           // Stop auto read
+                esp300Controller?.AbortProgram();                      // Stop ESP300 controller
 
                 stopDelayStageProgram();                         // Stop delay stage program
 
